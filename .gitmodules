@@ -1,0 +1,6 @@
+[submodule "external/sol2"]
+	path = external/sol2
+	url = https://github.com/ThePhD/sol2
+[submodule "external/bgfx"]
+	path = external/bgfx
+	url = https://github.com/bkaradzic/bgfx.cmake
