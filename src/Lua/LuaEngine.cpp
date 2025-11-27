@@ -20,8 +20,6 @@ bool LuaEngine::initialize() {
         sol::lib::string
     );
 
-    game->bind(lua);
-
     sol::state_view luaState(lua);
 
     sol::table data = lua.create_named_table("data");
@@ -144,6 +142,7 @@ bool LuaEngine::loadScript(const std::string& filepath) {
 }
 
 void LuaEngine::callOnInit() {
+    game->bind(lua);
     if (!scriptLoaded) return;
     sol::protected_function on_init = lua["on_init"];
     if (on_init.valid()) {

@@ -54,13 +54,13 @@ int main() {
     luaEngine->loadScript("assets/scripts/control.lua");
     luaEngine->loadScript("data/core/data.lua");
     luaEngine->loadScript("data/base/data.lua");
-    luaEngine->callOnInit(); // trigger on_init once
 
     //TBD: Remove TextureAtlas all together in favour of some parser + TextureAtlasSystem
     std::unique_ptr<TextureAtlas> atlas = std::make_unique<TextureAtlas>();
     atlas->buildFromLua(luaEngine->getState(), "tile");
     //HACK: Just to test parsing
     atlas->buildFromLua(luaEngine->getState(), "furnace");
+    luaEngine->callOnInit();
     ttm->loadFromLua(luaEngine->getState());
     TextureAtlasSystem::getInstance().bake();
 

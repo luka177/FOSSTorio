@@ -55,7 +55,6 @@ bool TextureAtlas::buildFromLua(sol::state& lua, const std::string& entityType) 
     }
 
     std::set<std::string> sortedPaths;
-PrototypeRegister pr;
 PrototypeID pi;
 // TBD: Temporary
 for (auto& kv : entities) {
@@ -65,7 +64,7 @@ for (auto& kv : entities) {
 
     if(entityType == "furnace") {
     auto proto = std::make_unique<FurnacePrototype>(def);
-    pi = pr.AddPrototype(std::move(proto));
+    pi = PrototypeRegister::getInstance().AddPrototype(std::move(proto));
 
     }
     sol::object picture  = def["picture"];

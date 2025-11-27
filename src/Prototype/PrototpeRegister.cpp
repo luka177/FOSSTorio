@@ -7,11 +7,22 @@ PrototypeID PrototypeRegister::AddPrototype(std::unique_ptr<PrototypeBase> proto
     PrototypeID id = next_id_++;
     const std::string& name = proto->getName();
     name_to_id[name] = id;
+    id_to_name[id] = name;
     proto->setId(id);
     id_to_prototype[id] = std::move(proto);
     std::cout << "[PrototypeRegister] Added prototype " << name
               << " id: " << id << "\n";
     return id;
+}
+
+const std::string& PrototypeRegister::GetNameByID(PrototypeID id) const {
+    auto it = id_to_name.find(id);
+
+    if (it == id_to_name.end()) {
+        throw std::out_of_range("[PrototypeRegister] No name registered for ID: " + std::to_string(id));
+    }
+
+    return it->second;
 }
 
 const PrototypeID PrototypeRegister::GetIdByName(const std::string& name) const {

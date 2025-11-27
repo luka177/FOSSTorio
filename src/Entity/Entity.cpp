@@ -2,10 +2,10 @@
 
 #include <Entity/Entity.h>
 
-Entity::Entity(const std::string& name, const Vec2& position)
-    : name(name), position(position)
+Entity::Entity(const PrototypeID prototypeId, const Vec2& position)
+    : prototypeId(prototypeId), position(position)
 {
-    std::cout << "[Entity] Created " << name << " at (" << position.x << ", " << position.y << ")\n";
+    std::cout << "[Entity] Created " << PrototypeRegister::getInstance().GetNameByID(prototypeId) << " at (" << position.x << ", " << position.y << ")\n";
 }
 
 void Entity::update(double dt) {

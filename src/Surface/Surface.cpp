@@ -3,6 +3,7 @@
 #include <Surface/Surface.h>
 #include <Renderer/Renderer.h>
 #include <Atlas/TextureAtlasSystem.h>
+#include <Prototype/PrototypeRegister.h>
 
 #include <bgfx/bgfx.h>
 #include <bx/math.h>
@@ -37,7 +38,7 @@ void Surface::create_entity(sol::table args) {
 
     std::cout << "[Surface] Creating entity: " << name << " at (" << x << ", " << y << ")" << std::endl;
 
-    entities.push_back(std::make_unique<Entity>(name, position));
+    entities.push_back(std::make_unique<Entity>(PrototypeRegister::getInstance().GetIdByName(name), position));
 }
 
   struct NormalColorVertex {

@@ -2,6 +2,8 @@
 
 #include <string>
 
+#include <Prototype/PrototypeRegister.h>
+
 struct Vec2 {
     double x;
     double y;
@@ -9,15 +11,15 @@ struct Vec2 {
 
 class Entity {
 public:
-    Entity(const std::string& name, const Vec2& position);
+    Entity(const PrototypeID prototypeId, const Vec2& position);
 
     void update(double dt);
     void draw();
 
-    const std::string& getName() const { return name; }
+    const PrototypeID getPrototypeId() const { return prototypeId; }
     const Vec2& getPosition() const { return position; }
 
 private:
-    std::string name;
+    PrototypeID prototypeId;
     Vec2 position;
 };
