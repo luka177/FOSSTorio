@@ -4,6 +4,7 @@
 #include <functional>
 
 #include <Tile/Tile.h>
+#include <Entity/EntityRegister.h>
 
 const int CHUNK_SIZE = 32;
 
@@ -25,8 +26,14 @@ struct ChunkCoordHash {
 class Chunk {
 public:
     Chunk();
-
-    Tile tiles[CHUNK_SIZE][CHUNK_SIZE];
-
+    // Do we want to check coords?
+    void addEntity(EntityID entity) { entity_list.push_back(entity); }
+    const std::vector<EntityID>& getEntityList() const { return entity_list; }
+    void removeEntity(EntityID entity);
     Tile& getTile(int localX, int localY);
+
+private:
+    std::vector <EntityID> entity_list;
+// TBD: NO, WTF WAS I THINKING??? WHY WOULD I STORE EACH TILE, MAKE IT OPTIONAL NAD BASE ON SEED IF NONE
+    Tile tiles[CHUNK_SIZE][CHUNK_SIZE];
 };
