@@ -4,6 +4,7 @@
 #include <Renderer/Renderer.h>
 #include <Atlas/TextureAtlasSystem.h>
 #include <Prototype/PrototypeRegister.h>
+#include <Entity/EntityRegister.h>
 
 #include <bgfx/bgfx.h>
 #include <bx/math.h>
@@ -38,7 +39,7 @@ void Surface::create_entity(sol::table args) {
 
     std::cout << "[Surface] Creating entity: " << name << " at (" << x << ", " << y << ")" << std::endl;
 
-    entities.push_back(std::make_unique<Entity>(PrototypeRegister::getInstance().GetIdByName(name), position));
+    EntityRegister::getInstance().AddEntity(std::make_unique<Entity>(PrototypeRegister::getInstance().GetIdByName(name), position));
 }
 
   struct NormalColorVertex {
@@ -47,9 +48,9 @@ void Surface::create_entity(sol::table args) {
 };
 
 void Surface::update(double dt) {
-    for (auto& entity : entities) {
-        entity->update(dt);
-    }
+//    for (auto& entity : entities) {
+  //      entity->update(dt);
+//    }
 }
 
 void Surface::draw(bgfx::VertexBufferHandle vbo, bgfx::IndexBufferHandle ibo, bgfx::ProgramHandle program) {
@@ -87,8 +88,6 @@ void Surface::draw(bgfx::VertexBufferHandle vbo, bgfx::IndexBufferHandle ibo, bg
 
     float u0, u1, v0, v1;
 
-    std::array<float, 4> uvRect;
-
     for (int y = minTileY; y <= maxTileY; ++y) {
         for (int x = minTileX; x <= maxTileX; ++x) {
             // Convert global tile coord to chunk/tile-in-chunk
@@ -124,8 +123,9 @@ void Surface::draw(bgfx::VertexBufferHandle vbo, bgfx::IndexBufferHandle ibo, bg
         }
     }
 
-    for (const auto& entity : entities) {
-        const Vec2 pos = entity->getPosition();
+  //  for (const auto& entity : entities) {
+  // HACK: For now just assume entity 0 is the only 1 to render
+        const Vec2 pos = EntityRegister::getInstance().GetEntityByID(0)->getPosition();
         const struct AtlasUV& uv = TextureAtlasSystem::getInstance().getUV(27);
         float uvRect[4] = { uv.u0, uv.v0, uv.u1, uv.v1 };
         bgfx::setUniform(u_uvRectHandle, uvRect);
@@ -140,7 +140,7 @@ void Surface::draw(bgfx::VertexBufferHandle vbo, bgfx::IndexBufferHandle ibo, bg
         bgfx::setIndexBuffer(ibo);
         bgfx::submit(0, program);
 
-    }
+    //}
 }
 
 struct TileChunkCoord Surface::getTileChunkCoord(int globalX, int globalY) {

@@ -4,6 +4,8 @@
 
 #include <Prototype/PrototypeRegister.h>
 
+typedef uint32_t EntityID;
+
 struct Vec2 {
     int64_t x;
     int64_t y;
@@ -19,7 +21,9 @@ public:
     const PrototypeID getPrototypeId() const { return prototypeId; }
     const Vec2& getPosition() const { return position; }
 
+    void setId(EntityID id);
 private:
+    EntityID id;
     PrototypeID prototypeId;
     Vec2 position;
 };

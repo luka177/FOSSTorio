@@ -32,7 +32,6 @@ public:
 private:
     Camera *camera;
     TileTextureManager *ttm;
-    std::vector<std::unique_ptr<Entity>> entities;
     std::unordered_map<ChunkCoord, std::unique_ptr<Chunk>, ChunkCoordHash> chunks;
 
     bgfx::UniformHandle s_texColorUniform;
