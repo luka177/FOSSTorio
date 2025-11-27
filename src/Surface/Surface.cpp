@@ -31,8 +31,8 @@ Surface::Surface(Camera *camera, TileTextureManager *ttm) : camera(camera), ttm(
 void Surface::create_entity(sol::table args) {
     std::string name = args["name"];
     sol::table pos = args["position"];
-    double x = pos["x"];
-    double y = pos["y"];
+    int64_t x = pos["x"];
+    int64_t y = pos["y"];
 
     Vec2 position{x, y};
 

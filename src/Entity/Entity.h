@@ -5,8 +5,8 @@
 #include <Prototype/PrototypeRegister.h>
 
 struct Vec2 {
-    double x;
-    double y;
+    int64_t x;
+    int64_t y;
 };
 
 class Entity {
