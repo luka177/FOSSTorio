@@ -2,8 +2,8 @@
 
 #include <Sprite/SpriteParameters.h>
 
-SpriteParmeters::SpriteParmeters(sol::table spritesource)
-    :SpriteSource(spritesource) {
+SpriteParmeters::SpriteParmeters(sol::table spritesource, bool load_texture)
+    :SpriteSource(spritesource, load_texture) {
     priority = parseSpritePriority(spritesource["priority"].get_or(std::string{"medium"}));
     flags = parseSpriteSourceFlags(spritesource["flags"]);
     if(spritesource["shift"].valid()) {

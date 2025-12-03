@@ -9,7 +9,11 @@ Animation::Animation(sol::table animation)
         for (auto const& [key, value] : layers_table.pairs()) {
             if (value.is<sol::table>()) {
                 sol::table layer_table = value.as<sol::table>();
-                layers.emplace_back(Animation(layer_table));
+                Animation layernaim = Animation(layer_table);
+                if(!layernaim.haveSprite()) {
+                    throw std::runtime_error("[Animation] Layer isnt supposed to have sub-layers!\n");
+                }
+                layers.emplace_back(layernaim);
             } else {
                 std::cout << "[Animation] Invalid layer value (not a table)\n";
             }

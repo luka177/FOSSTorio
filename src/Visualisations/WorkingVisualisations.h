@@ -8,6 +8,9 @@
 class WorkingVisualisations {
 public:
     WorkingVisualisations(sol::table workingvisualisations);
+    const std::optional<Animation4Way> getAnimation() const {
+        return animation;
+    };
 protected:
     std::optional<Animation4Way> animation;
     std::optional<Animation4Way> idle_animation;

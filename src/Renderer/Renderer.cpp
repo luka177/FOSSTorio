@@ -97,17 +97,11 @@ void Renderer::beginFrame() {
 
     bgfx::setViewClear(0, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0x303030ff, 1.0f, 0);
     bgfx::setViewRect(0, 0, 0, 800, 600);
-    bgfx::setViewRect(1, 0, 0, 800, 600);
+    //bgfx::setViewRect(1, 0, 0, 800, 600);
 
     camera->updateCamera(deltaTime);
     bgfx::touch(0);
-    bgfx::touch(1);
-
-    bgfx::setState(
-      BGFX_STATE_WRITE_RGB |
-      BGFX_STATE_WRITE_A |
-      BGFX_STATE_BLEND_ALPHA
-    );
+    //bgfx::touch(1);
 
     float view[16];
     bx::mtxIdentity(view);

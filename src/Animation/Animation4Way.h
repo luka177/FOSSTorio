@@ -5,6 +5,9 @@
 class Animation4Way {
 public:
     Animation4Way(sol::table animation4way);
+    std::optional<Animation> getAnimation() const {
+        return north;
+    }
 protected:
     std::optional<Animation> north;
     std::optional<Animation> north_east;

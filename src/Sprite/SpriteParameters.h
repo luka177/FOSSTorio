@@ -8,7 +8,14 @@
 
 class SpriteParmeters : public SpriteSource {
 public:
-    SpriteParmeters(sol::table spritesource);
+    SpriteParmeters(sol::table spritesource, bool load_texture = true);
+    double getScale() {
+        return scale;
+    }
+
+    bool getDrawAsShadow() {
+        return draw_as_shadow;
+    }
 protected:
     SpritePriority priority = SpritePriority::Medium;
     SpriteFlags flags;

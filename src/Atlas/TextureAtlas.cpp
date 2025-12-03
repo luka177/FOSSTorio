@@ -9,6 +9,7 @@
 #include <Lua/LuaHelper.h>
 #include <Prototype/PrototypeRegister.h>
 #include <EntitiesPrototypes/FurnacePrototype.h>
+#include <EntitiesPrototypes/TransportBeltConnectablePrototype.h>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <bgfx/bimg/3rdparty/stb/stb_image.h>
@@ -63,9 +64,11 @@ for (auto& kv : entities) {
     sol::table def = value.as<sol::table>();
 
     if(entityType == "furnace") {
-    auto proto = std::make_unique<FurnacePrototype>(def);
-    pi = PrototypeRegister::getInstance().AddPrototype(std::move(proto));
-
+        auto proto = std::make_unique<FurnacePrototype>(def);
+        pi = PrototypeRegister::getInstance().AddPrototype(std::move(proto));
+    } else if (entityType == "transport-belt") {
+        auto proto = std::make_unique<TransportBeltConnectablePrototype>(def);
+        pi = PrototypeRegister::getInstance().AddPrototype(std::move(proto));
     }
     sol::object picture  = def["picture"];
     collectImagePathsFromField(picture, sortedPaths);

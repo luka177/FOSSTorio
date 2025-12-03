@@ -10,6 +10,12 @@
 class Animation : public AnimationParameters {
 public:
     Animation(sol::table animation);
+    int getLayersCount() {
+        return layers.size();
+    }
+    const std::vector<Animation> getLayers() const {
+        return layers;
+    }
 protected:
     std::vector<Animation> layers;
     std::vector<Stripe> stripes;

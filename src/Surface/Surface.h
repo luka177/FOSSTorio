@@ -2,7 +2,7 @@
 
 #include <Camera/Camera.h>
 #include <Atlas/TextureAtlasSystem.h>
-#include <Entity/Entity.h>
+#include <Entity/EntityManager.h>
 #include <Chunk.h>
 #include <Tile/TileTextureManager.h>
 

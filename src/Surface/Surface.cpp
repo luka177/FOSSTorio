@@ -4,7 +4,11 @@
 #include <Renderer/Renderer.h>
 #include <Atlas/TextureAtlasSystem.h>
 #include <Prototype/PrototypeRegister.h>
-#include <Entity/EntityRegister.h>
+#include <Entity/Coordinator.h>
+#include <EntitiesPrototypes/CraftingMachinePrototype.h>
+#include <EntitiesPrototypes/TransportBeltConnectablePrototype.h>
+#include <Animation/AnimationParameters.h>
+#include <misc.h>
 
 #include <bgfx/bgfx.h>
 #include <bx/math.h>
@@ -38,7 +42,14 @@ void Surface::create_entity(sol::table args) {
     Vec2 position{x, y};
 
     std::cout << "[Surface] Creating entity: " << name << " at (" << x << ", " << y << ")" << std::endl;
-    chunks[getTileChunkCoord(x, y).chunk]->addEntity(EntityRegister::getInstance().AddEntity(std::make_unique<Entity>(PrototypeRegister::getInstance().GetIdByName(name), position)));
+    Entity toadd = Coordinator::Instance().CreateEntity();
+    AnimationFrameComponent frameid;
+    frameid.frame = 0;
+    Coordinator::Instance().AddComponent(toadd, position);
+    Coordinator::Instance().AddComponent(toadd, frameid);
+    Coordinator::Instance().AddComponent(toadd, PrototypeRegister::getInstance().GetIdByName(name));
+    chunks[getTileChunkCoord(x, y).chunk]->addEntity(toadd);
+
 }
 
   struct NormalColorVertex {
@@ -118,7 +129,11 @@ void Surface::draw(bgfx::VertexBufferHandle vbo, bgfx::IndexBufferHandle ibo, bg
             bgfx::setTransform(model);
             bgfx::setVertexBuffer(0, vbo);
             bgfx::setIndexBuffer(ibo);
-            bgfx::submit(1, program);
+            bgfx::setState(
+        BGFX_STATE_WRITE_RGB |
+        BGFX_STATE_WRITE_A   /* no DEPTH, no BLEND_ALPHA for opaque tiles */
+    );
+            bgfx::submit(0, program);
         }
     }
 
@@ -133,21 +148,85 @@ void Surface::draw(bgfx::VertexBufferHandle vbo, bgfx::IndexBufferHandle ibo, bg
             }
 
             Chunk* chunk = it->second.get();
-            for (EntityID id : chunk->getEntityList()) {
-                const Vec2 pos = EntityRegister::getInstance().GetEntityByID(id)->getPosition();
-                const struct AtlasUV& uv = TextureAtlasSystem::getInstance().getUV(27);
-                float uvRect[4] = { uv.u0, uv.v0, uv.u1, uv.v1 };
-                bgfx::setUniform(u_uvRectHandle, uvRect);
-                float model[16];
-                bx::mtxSRT(model,
-                    tileSize, tileSize, 1.0f,
-                    0.0f, 0.0f, 0.0f,
-                    pos.x * tileSize, pos.y * tileSize, 0.0f);
-                bgfx::setTexture(0, s_texColorUniform,  TextureAtlasSystem::getInstance().getAtlasTexture(uv.atlasId));
-                bgfx::setTransform(model);
-                bgfx::setVertexBuffer(0, vbo);
-                bgfx::setIndexBuffer(ibo);
-                bgfx::submit(0, program);
+            for (Entity entity : chunk->getEntityList()) {
+                const Vec2& pos = Coordinator::Instance().GetComponent<Vec2>(entity);
+                PrototypeID protoId = Coordinator::Instance().GetComponent<PrototypeID>(entity);
+                const PrototypeBase *proto = PrototypeRegister::getInstance().GetPrototypeByID(protoId);
+                if (const CraftingMachinePrototype* machine = dynamic_cast<const CraftingMachinePrototype*>(proto)) {
+                    if(machine->get_graphics_set()->getAnimation()->getAnimation()->getLayersCount()!=0) {
+                        for(Animation anim : machine->get_graphics_set()->getAnimation()->getAnimation()->getLayers()){
+                            const struct AtlasUV& uv = TextureAtlasSystem::getInstance().getUV(anim.getSprite());
+                            float uvRect[4] = { uv.u0, uv.v0, uv.u1, uv.v1 };
+                            bgfx::setUniform(u_uvRectHandle, uvRect);
+                            float model[16];
+                            bx::mtxSRT(model,
+                                anim.getWidth(),anim.getHeight(), 1.0f,
+                                0.0f, 0.0f, 0.0f,
+                                pos.x * tileSize, pos.y * tileSize, 0.0f);
+                            bgfx::setTexture(0, s_texColorUniform,  TextureAtlasSystem::getInstance().getAtlasTexture(uv.atlasId));
+                            bgfx::setTransform(model);
+                            bgfx::setVertexBuffer(0, vbo);
+                            bgfx::setIndexBuffer(ibo);
+                            if(!anim.getDrawAsShadow()) {
+                            uint64_t state =
+                                BGFX_STATE_WRITE_RGB |
+                                BGFX_STATE_WRITE_A   |
+                                BGFX_STATE_BLEND_NORMAL;
+
+                            bgfx::setState(state);
+                            } else {
+                                bgfx::setState(BGFX_STATE_DEFAULT | BGFX_STATE_BLEND_FACTOR | BGFX_STATE_BLEND_INV_FACTOR);
+                            }
+                            bgfx::submit(0, program);
+                        }
+                    }
+                }
+                if (const TransportBeltConnectablePrototype* belt = dynamic_cast<const TransportBeltConnectablePrototype*>(proto)) {
+                    if(belt->get_animation_set()->getAnimation()->getLayersCount()!=0) {
+                        for(RotatedAnimation anim : belt->get_animation_set()->getAnimation()->getLayers()){
+                            const struct AtlasUV& uv = TextureAtlasSystem::getInstance().getUV(anim.getSprite());
+                            float uvRect[4] = { uv.u0, uv.v0, uv.u1, uv.v1 };
+                            bgfx::setUniform(u_uvRectHandle, uvRect);
+                            float model[16];
+                            bx::mtxSRT(model,
+                                anim.getWidth(),anim.getHeight(), 1.0f,
+                                0.0f, 0.0f, 0.0f,
+                                pos.x * tileSize, pos.y * tileSize, 0.0f);
+                            bgfx::setTexture(0, s_texColorUniform,  TextureAtlasSystem::getInstance().getAtlasTexture(uv.atlasId));
+                            bgfx::setTransform(model);
+                            bgfx::setVertexBuffer(0, vbo);
+                            bgfx::setIndexBuffer(ibo);
+                            bgfx::setState(BGFX_STATE_DEFAULT | BGFX_STATE_BLEND_FACTOR | BGFX_STATE_BLEND_INV_FACTOR);
+                            bgfx::submit(0, program);
+                        }
+                    } else {
+                      //  if(belt->get_animation_set()->getAnimation()->getSpritesCount()) {
+                            AnimationFrameComponent &frameid = Coordinator::Instance().GetComponent<AnimationFrameComponent>(entity);
+                            const struct AtlasUV& uv = TextureAtlasSystem::getInstance().getUV(belt->get_animation_set()->getAnimation()->getSprites()[frameid.frame]);
+                            if(frameid.frame == 0) {
+                                frameid.frame = belt->get_animation_set()->getAnimation()->getFrameCount() - 1;
+                            } else {
+                                frameid.frame--;
+                            }
+                      //  } else {
+                      //      const struct AtlasUV& uv = TextureAtlasSystem::getInstance().getUV(belt->get_animation_set()->getAnimation()->getSprite());
+                      //  }
+                        float uvRect[4] = { uv.u0, uv.v0, uv.u1, uv.v1 };
+                        std::cout << "Coords: " <<  uv.u0 << " " << uv.v0 << " " << uv.u1 << " " << uv.v1 << "\n";
+                        bgfx::setUniform(u_uvRectHandle, uvRect);
+                        float model[16];
+                        bx::mtxSRT(model,
+                            64,64, 1.0f,
+                            0.0f, 0.0f, 0.0f,
+                            pos.x * tileSize, pos.y * tileSize, 0.0f);
+                        bgfx::setTexture(0, s_texColorUniform,  TextureAtlasSystem::getInstance().getAtlasTexture(uv.atlasId));
+                        bgfx::setTransform(model);
+                        bgfx::setVertexBuffer(0, vbo);
+                        bgfx::setIndexBuffer(ibo);
+                        bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
+                        bgfx::submit(0, program);
+                    }
+                }
             }
         }
     }

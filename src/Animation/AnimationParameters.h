@@ -7,9 +7,16 @@
 
 #include <sol/sol.hpp>
 
+struct AnimationFrameComponent {
+    uint32_t frame;
+};
+
 class AnimationParameters : public SpriteParmeters {
 public:
-    AnimationParameters(sol::table animationparameters);
+    AnimationParameters(sol::table animationparameters, bool load_texture = true);
+    uint32_t getFrameCount() {
+        return frame_count;
+    }
 protected:
     AnimationRunMode run_mode;
     uint32_t frame_count = 1;

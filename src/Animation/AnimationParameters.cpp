@@ -1,8 +1,8 @@
 #include <bits/stdc++.h>
 #include <Animation/AnimationParameters.h>
 
-AnimationParameters::AnimationParameters(sol::table animationparameters)
-    :SpriteParmeters(animationparameters) {
+AnimationParameters::AnimationParameters(sol::table animationparameters, bool load_texture)
+    :SpriteParmeters(animationparameters, load_texture) {
     run_mode = parseAnimationRunMode(animationparameters["run_mode"].get_or(std::string{"forward"}));
     frame_count = animationparameters["frame_count"].get_or(1);
     line_length = animationparameters["line_length"].get_or(0);

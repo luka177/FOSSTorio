@@ -17,6 +17,9 @@ class CraftingMachinePrototype: public EntityWithOwnerPrototype {
 public:
     CraftingMachinePrototype(sol::table entities);
     virtual ~CraftingMachinePrototype() = default;
+    const std::optional<CraftingMachineGraphicsSet> get_graphics_set() const {
+        return graphics_set;
+    };
 protected:
     bool quality_affects_energy_usage = false;
     //Energy energy_usage;

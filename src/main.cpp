@@ -4,6 +4,10 @@
 #include <Atlas/TextureAtlas.h>
 #include <Atlas/TextureAtlasSystem.h>
 #include <Tile/TileTextureManager.h>
+#include <Entity/Coordinator.h>
+#include <Prototype/PrototypeRegister.h>
+#include <Animation/AnimationParameters.h>
+#include <misc.h>
 
 // Global pointer TBD: put inside a GameManager or globalize
 std::unique_ptr<LuaEngine> luaEngine;
@@ -25,6 +29,10 @@ using Engine::Window;
 #include "platform/android/WindowAndroid.cpp"
 #endif
 
+#include <bx/timer.h>
+#include <bx/thread.h>
+#include <bx/os.h>
+
 int main() {
     std::cout << "Starting factorio-oss Engine..." << std::endl;
 
@@ -35,6 +43,10 @@ int main() {
         return -1;
     }
 
+    Coordinator::Instance().Init();
+    Coordinator::Instance().RegisterComponent<Vec2>();
+    Coordinator::Instance().RegisterComponent<PrototypeID>();
+    Coordinator::Instance().RegisterComponent<AnimationFrameComponent>();
     // TBD: Globalize or put into GameManager
     std::unique_ptr<Camera> camera = std::make_unique<Camera>((GLFWwindow*)window->getNativeHandle());
 
@@ -60,18 +72,32 @@ int main() {
     atlas->buildFromLua(luaEngine->getState(), "tile");
     //HACK: Just to test parsing
     atlas->buildFromLua(luaEngine->getState(), "furnace");
+    atlas->buildFromLua(luaEngine->getState(), "transport-belt");
     luaEngine->callOnInit();
     ttm->loadFromLua(luaEngine->getState());
     TextureAtlasSystem::getInstance().bake();
+
+    const double targetFrameTime = 1.0 / 32.0; // 60 FPS
+    const int64_t freq = bx::getHPFrequency();
 
     // Main loop
     while (!window->shouldClose()) {
       //TBD: Proper main loop
         window->pollEvents();
         luaEngine->callOnTick(1.0 / 60.0);
+       int64_t frameStart = bx::getHPCounter();
         renderer->beginFrame();
         luaEngine->getGame()->nauvis->draw(renderer->vbo, renderer->ibo, renderer->program);
         renderer->endFrame();
+        int64_t frameEnd = bx::getHPCounter();
+        double elapsedSec = double(frameEnd - frameStart) / double(freq);
+
+        double remainingSec = targetFrameTime - elapsedSec;
+        if (remainingSec > 0.0)
+        {
+            uint32_t toSleepMs = (uint32_t)(remainingSec * 1000.0);
+            bx::sleep(toSleepMs); // sleeps in milliseconds
+        }
     }
 
     //game->shutdown();

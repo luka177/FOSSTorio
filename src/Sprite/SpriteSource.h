@@ -7,9 +7,31 @@ using SpriteSizeType = int16_t;
 
 class SpriteSource {
 public:
-    SpriteSource(sol::table entity);
+    SpriteSource(sol::table entity, bool load_texture = true);
+    const TextureId getSprite() const {
+        if (!sprite) {
+            throw std::runtime_error("[SpriteSource] This is spritles layer container layer, DO NOT TRY TO ACCESS SPRITE!\n");
+        }
+        return *sprite;
+    }
+
+    bool haveSprite() {
+        if (!sprite) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    SpriteSizeType getWidth() {
+        return width;
+    }
+
+    SpriteSizeType getHeight() {
+        return height;
+    }
 protected:
-    TextureId sprite;
+    std::optional<TextureId> sprite;
     SpriteSizeType width;
     SpriteSizeType height;
     SpriteSizeType x = 0;

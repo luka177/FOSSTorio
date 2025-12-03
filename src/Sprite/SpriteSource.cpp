@@ -1,19 +1,21 @@
 #include <Sprite/SpriteSource.h>
 #include <Lua/LuaHelper.h>
 
-SpriteSource::SpriteSource(sol::table spritesource) {
+SpriteSource::SpriteSource(sol::table spritesource, bool load_texture) {
     sol::table t;
     bool textureless = false;
     std::cerr << "[SpriteSource] enter constructor\n";
 
-    if (spritesource["filename"].valid()) {
-        std::cerr << "[SpriteSource] have filename: " << spritesource["filename"].get<std::string>() << "\n";
-        sprite = TextureAtlasSystem::getInstance().requestTexture(resolveLuaPath(spritesource["filename"].get<std::string>()));
-    } else if (spritesource["layers"].valid()) {  // As per https://lua-api.factorio.com/latest/types/Animation.html#filename as there is no textrue dont try getting size
-        std::cerr << "[SpriteSource] textureless, layered sprite detected\n";
-        textureless = true;
-    } else {
-        throw std::runtime_error("[SpriteSource] either layers or filename are needed!\n");
+    if(load_texture) {
+        if (spritesource["filename"].valid()) {
+            std::cerr << "[SpriteSource] have filename: " << spritesource["filename"].get<std::string>() << "\n";
+            sprite = TextureAtlasSystem::getInstance().requestTexture(resolveLuaPath(spritesource["filename"].get<std::string>()));
+        } else if (spritesource["layers"].valid()) {  // As per https://lua-api.factorio.com/latest/types/Animation.html#filename as there is no textrue dont try getting size
+            std::cerr << "[SpriteSource] textureless, layered sprite detected\n";
+            textureless = true;
+        } else {
+            throw std::runtime_error("[SpriteSource] either layers or filename are needed!\n");
+        }
     }
 
     if(!textureless) {

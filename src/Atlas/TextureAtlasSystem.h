@@ -26,6 +26,7 @@ public:
         return instance;
     }
     TextureId requestTexture(const std::string& path);
+    TextureId requestSprite(const std::string& path, int col, int row, int cols, int rows, int width, int height, int paddingX = 0, int paddingY = 0);
     void bake();
 
     const AtlasUV& getUV(TextureId id) const;
@@ -44,6 +45,20 @@ private:
         std::vector<unsigned char> pixels; // RGBA8
     };
 
+    struct PendingSprite {
+        std::string path;
+        TextureId baseTexId;
+        int col;
+        int row;
+        int cols;
+        int rows;
+        int paddingX;
+        int paddingY;
+        int width;
+        int height;
+        std::vector<unsigned char> pixels;
+    };
+
     struct AtlasPage {
         uint16_t id;
         bgfx::TextureHandle handle;
@@ -52,9 +67,9 @@ private:
     };
 
     std::unordered_map<std::string, TextureId> pathToId;
-    std::vector<PendingTexture> textures;
+    std::vector<PendingSprite> textures;
     std::vector<AtlasUV> uvs;
     std::vector<AtlasPage> atlases;
-
+    std::vector<PendingSprite> pendingSprites;
     bool baked = false;
 };

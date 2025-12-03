@@ -4,7 +4,7 @@
 #include <functional>
 
 #include <Tile/Tile.h>
-#include <Entity/EntityRegister.h>
+#include <Entity/EntityManager.h>
 
 const int CHUNK_SIZE = 32;
 
@@ -27,13 +27,13 @@ class Chunk {
 public:
     Chunk();
     // Do we want to check coords?
-    void addEntity(EntityID entity) { entity_list.push_back(entity); }
-    const std::vector<EntityID>& getEntityList() const { return entity_list; }
-    void removeEntity(EntityID entity);
+    void addEntity(Entity entity) { entity_list.push_back(entity); }
+    const std::vector<Entity>& getEntityList() const { return entity_list; }
+    void removeEntity(Entity entity);
     Tile& getTile(int localX, int localY);
 
 private:
-    std::vector <EntityID> entity_list;
+    std::vector <Entity> entity_list;
 // TBD: NO, WTF WAS I THINKING??? WHY WOULD I STORE EACH TILE, MAKE IT OPTIONAL NAD BASE ON SEED IF NONE
     Tile tiles[CHUNK_SIZE][CHUNK_SIZE];
 };
