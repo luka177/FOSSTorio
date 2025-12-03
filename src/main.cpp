@@ -47,6 +47,8 @@ int main() {
     Coordinator::Instance().RegisterComponent<Vec2>();
     Coordinator::Instance().RegisterComponent<PrototypeID>();
     Coordinator::Instance().RegisterComponent<AnimationFrameComponent>();
+    Coordinator::Instance().RegisterComponent<Direction>();
+
     // TBD: Globalize or put into GameManager
     std::unique_ptr<Camera> camera = std::make_unique<Camera>((GLFWwindow*)window->getNativeHandle());
 
@@ -77,7 +79,7 @@ int main() {
     ttm->loadFromLua(luaEngine->getState());
     TextureAtlasSystem::getInstance().bake();
 
-    const double targetFrameTime = 1.0 / 32.0; // 60 FPS
+    const double targetFrameTime = 1.0 / 60.0; // 60 FPS
     const int64_t freq = bx::getHPFrequency();
 
     // Main loop

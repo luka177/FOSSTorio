@@ -38,15 +38,16 @@ void Surface::create_entity(sol::table args) {
     sol::table pos = args["position"];
     int64_t x = pos["x"];
     int64_t y = pos["y"];
-
+    Direction dir = args["direction"].get_or(Direction::North);
     Vec2 position{x, y};
 
-    std::cout << "[Surface] Creating entity: " << name << " at (" << x << ", " << y << ")" << std::endl;
+    std::cout << "[Surface] Creating entity: " << name << " at (" << x << ", " << y << ") direction: " << dir << std::endl;
     Entity toadd = Coordinator::Instance().CreateEntity();
     AnimationFrameComponent frameid;
     frameid.frame = 0;
     Coordinator::Instance().AddComponent(toadd, position);
     Coordinator::Instance().AddComponent(toadd, frameid);
+    Coordinator::Instance().AddComponent(toadd, dir);
     Coordinator::Instance().AddComponent(toadd, PrototypeRegister::getInstance().GetIdByName(name));
     chunks[getTileChunkCoord(x, y).chunk]->addEntity(toadd);
 
@@ -137,17 +138,19 @@ void Surface::draw(bgfx::VertexBufferHandle vbo, bgfx::IndexBufferHandle ibo, bg
         }
     }
 
+    std::unordered_set<ChunkCoord> visibleChunks;
     for (int y = minTileY; y <= maxTileY; ++y) {
         for (int x = minTileX; x <= maxTileX; ++x) {
-            // Convert global tile coord to chunk/tile-in-chunk
             TileChunkCoord coord = getTileChunkCoord(x, y);
+            visibleChunks.insert(coord.chunk);
+        }
+    }
 
-            auto it = chunks.find(coord.chunk);
-            if (it == chunks.end()) {
-                continue;
-            }
+   for (const ChunkCoord& chunkCoord : visibleChunks) {
+    auto it = chunks.find(chunkCoord);
+    if (it == chunks.end()) continue;
 
-            Chunk* chunk = it->second.get();
+    Chunk* chunk = it->second.get();
             for (Entity entity : chunk->getEntityList()) {
                 const Vec2& pos = Coordinator::Instance().GetComponent<Vec2>(entity);
                 PrototypeID protoId = Coordinator::Instance().GetComponent<PrototypeID>(entity);
@@ -174,10 +177,10 @@ void Surface::draw(bgfx::VertexBufferHandle vbo, bgfx::IndexBufferHandle ibo, bg
                                 BGFX_STATE_BLEND_NORMAL;
 
                             bgfx::setState(state);
-                            } else {
-                                bgfx::setState(BGFX_STATE_DEFAULT | BGFX_STATE_BLEND_FACTOR | BGFX_STATE_BLEND_INV_FACTOR);
-                            }
                             bgfx::submit(0, program);
+                            } else {
+                                bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A   | BGFX_STATE_BLEND_NORMAL);
+                            }
                         }
                     }
                 }
@@ -196,23 +199,27 @@ void Surface::draw(bgfx::VertexBufferHandle vbo, bgfx::IndexBufferHandle ibo, bg
                             bgfx::setTransform(model);
                             bgfx::setVertexBuffer(0, vbo);
                             bgfx::setIndexBuffer(ibo);
-                            bgfx::setState(BGFX_STATE_DEFAULT | BGFX_STATE_BLEND_FACTOR | BGFX_STATE_BLEND_INV_FACTOR);
+                            bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A   | BGFX_STATE_BLEND_NORMAL);
                             bgfx::submit(0, program);
                         }
                     } else {
                       //  if(belt->get_animation_set()->getAnimation()->getSpritesCount()) {
+                            uint8_t dir = belt->get_animation_set()->directionToDirectionID(Coordinator::Instance().GetComponent<Direction>(entity)) - 1;
                             AnimationFrameComponent &frameid = Coordinator::Instance().GetComponent<AnimationFrameComponent>(entity);
+                            if(frameid.frame < dir*(belt->get_animation_set()->getAnimation()->getFrameCount())) {
+                                frameid.frame = dir*(belt->get_animation_set()->getAnimation()->getFrameCount());
+                            }
                             const struct AtlasUV& uv = TextureAtlasSystem::getInstance().getUV(belt->get_animation_set()->getAnimation()->getSprites()[frameid.frame]);
-                            if(frameid.frame == 0) {
-                                frameid.frame = belt->get_animation_set()->getAnimation()->getFrameCount() - 1;
+
+                            if(frameid.frame == ((dir + 1) *(belt->get_animation_set()->getAnimation()->getFrameCount())) - 1) {
+                                frameid.frame = dir*(belt->get_animation_set()->getAnimation()->getFrameCount());
                             } else {
-                                frameid.frame--;
+                                frameid.frame++;
                             }
                       //  } else {
                       //      const struct AtlasUV& uv = TextureAtlasSystem::getInstance().getUV(belt->get_animation_set()->getAnimation()->getSprite());
                       //  }
                         float uvRect[4] = { uv.u0, uv.v0, uv.u1, uv.v1 };
-                        std::cout << "Coords: " <<  uv.u0 << " " << uv.v0 << " " << uv.u1 << " " << uv.v1 << "\n";
                         bgfx::setUniform(u_uvRectHandle, uvRect);
                         float model[16];
                         bx::mtxSRT(model,
@@ -223,13 +230,12 @@ void Surface::draw(bgfx::VertexBufferHandle vbo, bgfx::IndexBufferHandle ibo, bg
                         bgfx::setTransform(model);
                         bgfx::setVertexBuffer(0, vbo);
                         bgfx::setIndexBuffer(ibo);
-                        bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
+                        bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A   | BGFX_STATE_BLEND_NORMAL);
                         bgfx::submit(0, program);
                     }
                 }
             }
         }
-    }
 }
 
 struct TileChunkCoord Surface::getTileChunkCoord(int globalX, int globalY) {

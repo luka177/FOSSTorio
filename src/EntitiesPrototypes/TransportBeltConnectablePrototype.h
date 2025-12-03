@@ -11,6 +11,7 @@ public:
     const std::optional<TransportBeltAnimationSet> get_animation_set() const {
         return belt_animation_set;
     };
+
 protected:
     std::optional<TransportBeltAnimationSet> belt_animation_set;
     double speed = 1;

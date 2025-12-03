@@ -11,11 +11,22 @@ const int CHUNK_SIZE = 32;
 struct ChunkCoord {
     int chunkX;
     int chunkY;
-
-    bool operator==(const ChunkCoord& other) const {
-        return chunkX == other.chunkX && chunkY == other.chunkY;
-    }
 };
+
+inline bool operator==(const ChunkCoord& a, const ChunkCoord& b) noexcept {
+    return a.chunkX == b.chunkX && a.chunkY == b.chunkY;
+}
+
+namespace std {
+    template<>
+    struct hash<ChunkCoord> {
+        std::size_t operator()(ChunkCoord const& c) const noexcept {
+            std::size_t h1 = std::hash<int>{}(c.chunkX);
+            std::size_t h2 = std::hash<int>{}(c.chunkY);
+            return h1 ^ (h2 + 0x9e3779b9u + (h1 << 6) + (h1 >> 2));
+        }
+    };
+}
 
 struct ChunkCoordHash {
     std::size_t operator()(const ChunkCoord& c) const {
