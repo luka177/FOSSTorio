@@ -1,4 +1,6 @@
 #pragma once
+#include <unordered_map>
+#include <vector>
 
 class IComponentArray
 {
@@ -62,6 +64,31 @@ public:
         {
             RemoveData(entity);
         }
+    }
+
+    std::size_t Size() const
+    {
+        return mComponentArray.size();
+    }
+
+    Entity GetEntityByIndex(std::size_t index) const
+    {
+        return mIndexToEntityMap[index];
+    }
+
+    T& GetComponentByIndex(std::size_t index)
+    {
+        return mComponentArray[index];
+    }
+
+    const T& GetComponentByIndex(std::size_t index) const
+    {
+        return mComponentArray[index];
+    }
+
+    bool Has(Entity entity) const
+    {
+        return mEntityToIndexMap.find(entity) != mEntityToIndexMap.end();
     }
 
 private:

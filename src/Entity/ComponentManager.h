@@ -67,6 +67,24 @@ public:
         }
     }
 
+    template<typename T>
+    ComponentArray<T>& GetComponentArrayRef()
+    {
+        return *GetComponentArray<T>();
+    }
+
+    template<typename T>
+    const ComponentArray<T>& GetComponentArrayRef() const
+    {
+        return *GetComponentArray<T>();
+    }
+
+    template<typename T>
+    bool HasComponent(Entity entity)
+    {
+        return GetComponentArray<T>()->Has(entity);
+    }
+
 private:
 
     template<typename T>

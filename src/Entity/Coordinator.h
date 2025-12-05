@@ -88,6 +88,17 @@ public:
         return mComponentManager->GetComponentType<T>();
     }
 
+    template<typename T>
+    bool HasComponent(Entity entity)
+    {
+        return mComponentManager->HasComponent<T>(entity);
+    }
+
+    template<typename T>
+    ComponentArray<T>& GetComponentArrayRef()
+    {
+        return mComponentManager->GetComponentArrayRef<T>();
+    }
 
     // System methods
     template<typename T>

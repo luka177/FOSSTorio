@@ -5,7 +5,7 @@
 #include <vector>
 
 using Signature = std::bitset<128>;
-typedef uint64_t Entity;
+using Entity = uint64_t;
 
 class EntityManager
 {
