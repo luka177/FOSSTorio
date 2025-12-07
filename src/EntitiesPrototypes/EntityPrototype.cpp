@@ -1,10 +1,17 @@
 #include <EntitiesPrototypes/EntityPrototype.h>
 
+#include <Lua/LuaHelper.h>
+
 EntityPrototype::EntityPrototype(sol::table entity)
     :Prototype(entity) {
     // So far I dont see why would i need to keep path
-    // icon = AtlasAddTexture(entity["icon"].get_or(""));
     icon_size = entity["icon_size"].get_or(64);
+    if (entity["icon"].valid()) {
+        icon = TextureAtlasSystem::getInstance().requestSprite(resolveLuaPath(entity["icon"].get<std::string>()), 0, 0, 1, 1, icon_size, icon_size);
+    } else {
+        throw std::runtime_error("[EntityPrototype] icon is needed!\n");
+    }
+
     collision_box = parseBoundingBox(entity["collision_box"]);
     map_generator_bounding_box = parseBoundingBox(entity["map_generator_bounding_box"]);
     selection_box = parseBoundingBox(entity["selection_box"]);

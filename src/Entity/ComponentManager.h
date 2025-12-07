@@ -74,12 +74,6 @@ public:
     }
 
     template<typename T>
-    const ComponentArray<T>& GetComponentArrayRef() const
-    {
-        return *GetComponentArray<T>();
-    }
-
-    template<typename T>
     bool HasComponent(Entity entity)
     {
         return GetComponentArray<T>()->Has(entity);

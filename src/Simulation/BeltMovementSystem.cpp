@@ -2,7 +2,7 @@
 #include <Entity/Coordinator.h>
 
 //TBD: read from prototype?
-constexpr int TICK_MOVE_POSITIONS = 1;
+constexpr int TICK_MOVE_POSITIONS = 5;
 
 void BeltMovementSystem::Update()
 {
@@ -36,17 +36,15 @@ void BeltMovementSystem::MoveItemsInLane(int laneIndex, BeltComponent& beltComp,
     for (auto it = beltComp.itemPositions[laneIndex].rbegin();
          it != beltComp.itemPositions[laneIndex].rend(); ++it)
     {
-        if (it->itemEntity.has_value())
+        if (it->itemPrototype.has_value())
         {
             int new_pos = it->start_pos + TICK_MOVE_POSITIONS;
-
             if (std::next(it) != beltComp.itemPositions[laneIndex].rend())
             {
                 const auto& itemInFront = *std::next(it);
                 int max_allowed_pos = itemInFront.start_pos - ITEM_POSITION_LENGTH;
                 new_pos = std::min(new_pos, max_allowed_pos);
             }
-
             if (new_pos < POSITIONS_PER_LANE)
             {
                 it->start_pos = new_pos;
@@ -59,17 +57,13 @@ void BeltMovementSystem::MoveItemsInLane(int laneIndex, BeltComponent& beltComp,
 void BeltMovementSystem::PushItemToNextTile(int laneIndex, BeltComponent& currentBeltComp, Direction beltDir, Vec2 pos)
 {
     if (currentBeltComp.itemPositions[laneIndex].empty()) return;
-
     auto& exitingItemData = currentBeltComp.itemPositions[laneIndex].back();
-
     if (exitingItemData.start_pos + TICK_MOVE_POSITIONS >= POSITIONS_PER_LANE)
     {
         std::optional<Entity> nextBeltEntity = GetNextBeltEntity(pos, beltDir);
-
         if (nextBeltEntity.has_value())
         {
             BeltComponent& nextBeltComp = Coordinator::Instance().GetComponent<BeltComponent>(nextBeltEntity.value());
-
             int entry_pos = 0;
             if (!nextBeltComp.itemPositions[laneIndex].empty())
             {
@@ -81,9 +75,8 @@ void BeltMovementSystem::PushItemToNextTile(int laneIndex, BeltComponent& curren
             }
 
             BeltItemData newItemData;
-            newItemData.itemEntity = exitingItemData.itemEntity;
+            newItemData.itemPrototype = exitingItemData.itemPrototype;
             newItemData.start_pos = entry_pos;
-
             nextBeltComp.itemPositions[laneIndex].insert(
                 nextBeltComp.itemPositions[laneIndex].begin(),
                 newItemData
@@ -94,7 +87,53 @@ void BeltMovementSystem::PushItemToNextTile(int laneIndex, BeltComponent& curren
         else
         {
             currentBeltComp.itemPositions[laneIndex].pop_back();
-            //DestroyEntity(exitingItemData.itemEntity.value());
+            //DestroyEntity(exitingItemData.itemPrototype.value());
         }
     }
+}
+
+Vec2 CalculateNextTilePosition(const Vec2& currentTilePos, Direction dir)
+{
+    Vec2 nextPos = currentTilePos;
+
+    switch (dir)
+    {
+        case Direction::North:
+            nextPos.y -= 1;
+            break;
+        case Direction::East:
+            nextPos.x += 1;
+            break;
+        case Direction::South:
+            nextPos.y += 1;
+            break;
+        case Direction::West:
+            nextPos.x -= 1;
+            break;
+    }
+    return nextPos;
+}
+
+std::optional<Entity> BeltMovementSystem::GetNextBeltEntity(Vec2 currentTile, Direction beltDir)
+{
+    auto& coord = Coordinator::Instance();
+
+    Vec2 targetPos = CalculateNextTilePosition(currentTile, beltDir);
+    auto& beltComponents = coord.GetComponentArrayRef<BeltComponent>();
+
+    for (size_t i = 0; i < beltComponents.Size(); ++i)
+    {
+        Entity entityID = beltComponents.GetEntityByIndex(i);
+        const Vec2& potentialPos = coord.GetComponent<Vec2>(entityID);
+
+        constexpr float EPSILON = 0.001f;
+
+        if (std::abs(potentialPos.x - targetPos.x) < EPSILON &&
+            std::abs(potentialPos.y - targetPos.y) < EPSILON)
+        {
+            return entityID;
+        }
+    }
+
+    return std::nullopt;
 }

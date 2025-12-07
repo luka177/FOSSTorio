@@ -5,6 +5,8 @@
 #include <unordered_map>
 #include <bits/stdc++.h>
 
+#include <Atlas/TextureAtlasSystem.h>
+#include <Sprite/SpriteSource.h>
 #include <Prototype/Prototype.h>
 #include "EntitiesPrototypesTypes.h"
 
@@ -14,9 +16,12 @@ class EntityPrototype: public Prototype {
 public:
     EntityPrototype(sol::table entities);
     virtual ~EntityPrototype() = default;
+    TextureId getIcon() const {
+        return icon;
+    };
 protected:
-    //AtlasTexture icon;
-    uint16_t icon_size;
+    TextureId icon;
+    SpriteSizeType icon_size;
     BoundingBox collision_box;
     //CollisionMaskConnector collision_mask
     BoundingBox map_generator_bounding_box;

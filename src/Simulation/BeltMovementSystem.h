@@ -8,14 +8,16 @@
 #include <Entity/EntityManager.h>
 #include <Tile/Tile.h>
 
+#include <Prototype/PrototypeRegister.h>
+
 constexpr int POSITIONS_PER_LANE = 256;
 constexpr int ITEM_POSITION_LENGTH = 64;
 constexpr int LANES_PER_BELT = 2;
-
+//TBD: we need items register, items can have quality and health
 struct BeltItemData
 {
-    std::optional<Entity> itemEntity;
-    int8_t start_pos;
+    std::optional<PrototypeID> itemPrototype;
+    int16_t start_pos;
 };
 
 struct BeltComponent

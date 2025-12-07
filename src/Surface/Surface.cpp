@@ -1,5 +1,6 @@
 #include <iostream>
 
+#include <Animator/Animator.h>
 #include <Surface/Surface.h>
 #include <Renderer/Renderer.h>
 #include <Atlas/TextureAtlasSystem.h>
@@ -8,11 +9,12 @@
 #include <EntitiesPrototypes/CraftingMachinePrototype.h>
 #include <EntitiesPrototypes/TransportBeltConnectablePrototype.h>
 #include <Animation/AnimationParameters.h>
+#include <Simulation/BeltMovementSystem.h>
 #include <misc.h>
 
 #include <bgfx/bgfx.h>
 #include <bx/math.h>
-
+bool done=false;
 Surface::Surface(Camera *camera, TileTextureManager *ttm) : camera(camera), ttm(ttm) {
     // TBD properly generate surface, for now just create chunks manually
     const int halfSize = 5;
@@ -49,6 +51,29 @@ void Surface::create_entity(sol::table args) {
     Coordinator::Instance().AddComponent(toadd, frameid);
     Coordinator::Instance().AddComponent(toadd, dir);
     Coordinator::Instance().AddComponent(toadd, PrototypeRegister::getInstance().GetIdByName(name));
+        if(name=="fast-transport-belt") {
+            if(!done) {
+                BeltComponent belt{
+                    {
+                        // lane 0
+                        std::vector<BeltItemData>{
+                            BeltItemData{
+                                PrototypeRegister::getInstance().GetIdByName("fast-transport-belt"),
+                                0
+                            }
+                        },
+                    }
+                };
+                 Coordinator::Instance().AddComponent(toadd, belt);
+                 done = 1;
+            } else {
+                BeltComponent belt{
+                    {
+                    }
+                };
+                 Coordinator::Instance().AddComponent(toadd, belt);
+            }
+    }
     chunks[getTileChunkCoord(x, y).chunk]->addEntity(toadd);
 
 }
@@ -65,177 +90,28 @@ void Surface::update(double dt) {
 }
 
 void Surface::draw(bgfx::VertexBufferHandle vbo, bgfx::IndexBufferHandle ibo, bgfx::ProgramHandle program) {
-    const float tileSize = 32.0f;
+    statate_to_render(camera, ttm, renderQueue, this);
+    const auto& queue = renderQueue.getFrontList();
 
-    float camX = camera->getX();
-    float camY = camera->getY();
-    float zoom = camera->getZoom();
+    for (const RenderObject& ro : queue)
+    {
+        float model[16];
+        bx::mtxSRT(model,
+                   ro.w, ro.h, 1.0f,
+                   0.0f, 0.0f, ro.rotation,
+                   ro.x, ro.y, 0.0f);
 
-//    bgfx::dbgTextPrintf(0, 0, 0x0f, "Camera X: %d, Y: %d", camX, camY);
-  //  std::cout << "Camera X:" << camX << " Y: " <<camY <<  std::endl;
-    // Get actual window (backbuffer) size
-    const bgfx::Stats* stats = bgfx::getStats();
-    float windowWidth = static_cast<float>(stats->width);
-    float windowHeight = static_cast<float>(stats->height);
-
-    // Compute visible world area
-    float halfViewW = (windowWidth * 0.5f) / zoom;
-    float halfViewH = (windowHeight * 0.5f) / zoom;
-
-    int minTileX = static_cast<int>(std::floor((camX - halfViewW) / tileSize));
-    int maxTileX = static_cast<int>(std::ceil((camX + halfViewW) / tileSize));
-    int minTileY = static_cast<int>(std::floor((camY - halfViewH) / tileSize));
-    int maxTileY = static_cast<int>(std::ceil((camY + halfViewH) / tileSize));
-
-    float atlasCols = 64.0f;
-    float atlasRows = 9.0f;
-
-    int tileType, tx, ty;
-
-    // Add padding if needed (e.g., half-texel inset)
-    float padding = 0.0f;
-    float tileW = 1.0f / atlasCols;
-    float tileH = 1.0f / atlasRows;
-
-    float u0, u1, v0, v1;
-
-    for (int y = minTileY; y <= maxTileY; ++y) {
-        for (int x = minTileX; x <= maxTileX; ++x) {
-            // Convert global tile coord to chunk/tile-in-chunk
-            TileChunkCoord coord = getTileChunkCoord(x, y);
-            ChunkCoord chunkCoord = coord.chunk;
-
-            auto it = chunks.find(chunkCoord);
-            if (it == chunks.end()) {
-                continue; // Chunk doesn't exist, skip
-            }
-
-            Chunk* chunk = it->second.get();
-            Tile& tile = chunk->getTile(coord.tile.tileX, coord.tile.tileY);
-
-            auto info = ttm->getTileUVInfo("grass-1", 1, tile.getTextureId());
-
-            float uvRect[4] = { info.uv.u0, info.uv.v0, info.uv.u1, info.uv.v1 };
-            bgfx::setUniform(u_uvRectHandle, uvRect);
-
-            float model[16];
-            bx::mtxSRT(model,
-                tileSize, tileSize, 1.0f,
-                0.0f, 0.0f, 0.0f,
-                x * tileSize, y * tileSize, 0.0f);
-
-            // TODO: set correct texture for tile.get_type()
-            bgfx::setTexture(0, s_texColorUniform,
-                 TextureAtlasSystem::getInstance().getAtlasTexture(info.atlasId));
-            bgfx::setTransform(model);
-            bgfx::setVertexBuffer(0, vbo);
-            bgfx::setIndexBuffer(ibo);
-            bgfx::setState(
-        BGFX_STATE_WRITE_RGB |
-        BGFX_STATE_WRITE_A   /* no DEPTH, no BLEND_ALPHA for opaque tiles */
-    );
-            bgfx::submit(0, program);
-        }
+        float uvRect[4] = { ro.tex.u0, ro.tex.v0, ro.tex.u1, ro.tex.v1 };
+        bgfx::setUniform(u_uvRectHandle, uvRect);
+        bgfx::setTexture(0, s_texColorUniform, TextureAtlasSystem::getInstance().getAtlasTexture(ro.tex.atlasId));
+        bgfx::setTransform(model);
+        bgfx::setVertexBuffer(0, vbo);
+        bgfx::setIndexBuffer(ibo);
+        bgfx::setState(ro.state);
+        bgfx::submit(0, program);
     }
 
-    std::unordered_set<ChunkCoord> visibleChunks;
-    for (int y = minTileY; y <= maxTileY; ++y) {
-        for (int x = minTileX; x <= maxTileX; ++x) {
-            TileChunkCoord coord = getTileChunkCoord(x, y);
-            visibleChunks.insert(coord.chunk);
-        }
-    }
-
-   for (const ChunkCoord& chunkCoord : visibleChunks) {
-    auto it = chunks.find(chunkCoord);
-    if (it == chunks.end()) continue;
-
-    Chunk* chunk = it->second.get();
-            for (Entity entity : chunk->getEntityList()) {
-                const Vec2& pos = Coordinator::Instance().GetComponent<Vec2>(entity);
-                PrototypeID protoId = Coordinator::Instance().GetComponent<PrototypeID>(entity);
-                const PrototypeBase *proto = PrototypeRegister::getInstance().GetPrototypeByID(protoId);
-                if (const CraftingMachinePrototype* machine = dynamic_cast<const CraftingMachinePrototype*>(proto)) {
-                    if(machine->get_graphics_set()->getAnimation()->getAnimation()->getLayersCount()!=0) {
-                        for(Animation anim : machine->get_graphics_set()->getAnimation()->getAnimation()->getLayers()){
-                            const struct AtlasUV& uv = TextureAtlasSystem::getInstance().getUV(anim.getSprite());
-                            float uvRect[4] = { uv.u0, uv.v0, uv.u1, uv.v1 };
-                            bgfx::setUniform(u_uvRectHandle, uvRect);
-                            float model[16];
-                            bx::mtxSRT(model,
-                                anim.getWidth(),anim.getHeight(), 1.0f,
-                                0.0f, 0.0f, 0.0f,
-                                pos.x * tileSize, pos.y * tileSize, 0.0f);
-                            bgfx::setTexture(0, s_texColorUniform,  TextureAtlasSystem::getInstance().getAtlasTexture(uv.atlasId));
-                            bgfx::setTransform(model);
-                            bgfx::setVertexBuffer(0, vbo);
-                            bgfx::setIndexBuffer(ibo);
-                            if(!anim.getDrawAsShadow()) {
-                            uint64_t state =
-                                BGFX_STATE_WRITE_RGB |
-                                BGFX_STATE_WRITE_A   |
-                                BGFX_STATE_BLEND_NORMAL;
-
-                            bgfx::setState(state);
-                            bgfx::submit(0, program);
-                            } else {
-                                bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A   | BGFX_STATE_BLEND_NORMAL);
-                            }
-                        }
-                    }
-                }
-                if (const TransportBeltConnectablePrototype* belt = dynamic_cast<const TransportBeltConnectablePrototype*>(proto)) {
-                    if(belt->get_animation_set()->getAnimation()->getLayersCount()!=0) {
-                        for(RotatedAnimation anim : belt->get_animation_set()->getAnimation()->getLayers()){
-                            const struct AtlasUV& uv = TextureAtlasSystem::getInstance().getUV(anim.getSprite());
-                            float uvRect[4] = { uv.u0, uv.v0, uv.u1, uv.v1 };
-                            bgfx::setUniform(u_uvRectHandle, uvRect);
-                            float model[16];
-                            bx::mtxSRT(model,
-                                anim.getWidth(),anim.getHeight(), 1.0f,
-                                0.0f, 0.0f, 0.0f,
-                                pos.x * tileSize, pos.y * tileSize, 0.0f);
-                            bgfx::setTexture(0, s_texColorUniform,  TextureAtlasSystem::getInstance().getAtlasTexture(uv.atlasId));
-                            bgfx::setTransform(model);
-                            bgfx::setVertexBuffer(0, vbo);
-                            bgfx::setIndexBuffer(ibo);
-                            bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A   | BGFX_STATE_BLEND_NORMAL);
-                            bgfx::submit(0, program);
-                        }
-                    } else {
-                      //  if(belt->get_animation_set()->getAnimation()->getSpritesCount()) {
-                            uint8_t dir = belt->get_animation_set()->directionToDirectionID(Coordinator::Instance().GetComponent<Direction>(entity)) - 1;
-                            AnimationFrameComponent &frameid = Coordinator::Instance().GetComponent<AnimationFrameComponent>(entity);
-                            if(frameid.frame < dir*(belt->get_animation_set()->getAnimation()->getFrameCount())) {
-                                frameid.frame = dir*(belt->get_animation_set()->getAnimation()->getFrameCount());
-                            }
-                            const struct AtlasUV& uv = TextureAtlasSystem::getInstance().getUV(belt->get_animation_set()->getAnimation()->getSprites()[frameid.frame]);
-
-                            if(frameid.frame == ((dir + 1) *(belt->get_animation_set()->getAnimation()->getFrameCount())) - 1) {
-                                frameid.frame = dir*(belt->get_animation_set()->getAnimation()->getFrameCount());
-                            } else {
-                                frameid.frame++;
-                            }
-                      //  } else {
-                      //      const struct AtlasUV& uv = TextureAtlasSystem::getInstance().getUV(belt->get_animation_set()->getAnimation()->getSprite());
-                      //  }
-                        float uvRect[4] = { uv.u0, uv.v0, uv.u1, uv.v1 };
-                        bgfx::setUniform(u_uvRectHandle, uvRect);
-                        float model[16];
-                        bx::mtxSRT(model,
-                            64,64, 1.0f,
-                            0.0f, 0.0f, 0.0f,
-                            pos.x * tileSize, pos.y * tileSize, 0.0f);
-                        bgfx::setTexture(0, s_texColorUniform,  TextureAtlasSystem::getInstance().getAtlasTexture(uv.atlasId));
-                        bgfx::setTransform(model);
-                        bgfx::setVertexBuffer(0, vbo);
-                        bgfx::setIndexBuffer(ibo);
-                        bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A   | BGFX_STATE_BLEND_NORMAL);
-                        bgfx::submit(0, program);
-                    }
-                }
-            }
-        }
+    bgfx::frame();
 }
 
 struct TileChunkCoord Surface::getTileChunkCoord(int globalX, int globalY) {

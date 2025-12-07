@@ -1,4 +1,4 @@
-#pragma
+#pragma once
 #include <Atlas/TextureAtlasSystem.h>
 
 #include <sol/sol.hpp>

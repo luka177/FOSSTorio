@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Camera/Camera.h>
+#include <EntitiesPrototypes/EntitiesPrototypesTypes.h>
 
 #include <bgfx/bgfx.h>
 

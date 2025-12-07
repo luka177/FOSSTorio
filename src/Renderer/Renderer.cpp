@@ -17,6 +17,10 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <bgfx/bimg/3rdparty/stb/stb_image.h>
 
+#include <Simulation/BeltMovementSystem.h>
+
+BeltMovementSystem beltSystem;
+
 Renderer::Renderer(Camera *camera)
   : camera(camera){}
 
@@ -91,6 +95,7 @@ void Renderer::shutdown() {
 }
 
 void Renderer::beginFrame() {
+    beltSystem.Update();
     int64_t now = bx::getHPCounter();
     double deltaTime = double(now - lastTime) / freq;
     lastTime = now;

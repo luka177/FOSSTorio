@@ -67,7 +67,7 @@ const UVRect TileTextureManager::getUV(int tileId, int size, int index) const {
     return variation->getUV(index);
 }
 
-TileUVInfo TileTextureManager::getTileUVInfo(const std::string& name, int size, int index) const {
+TileUVInfo TileTextureManager::getTileUVInfo(const std::string& name, int size, int index, TileTag) const {
     auto it = nameToIndex.find(name);
     if (it == nameToIndex.end()) return {0, {0,0,0,0}};
 
@@ -82,3 +82,25 @@ TileUVInfo TileTextureManager::getTileUVInfo(const std::string& name, int size, 
 
     return { auv.atlasId, rect };
 }
+
+AtlasUV TileTextureManager::getTileUVInfo(const std::string& name, int size, int index, AtlasTag) const {
+    auto it = nameToIndex.find(name);
+    if (it == nameToIndex.end()) {
+        std::cout << "This should NEVER happen\n";
+    }
+    const TileTexture& tex = tileTextures[it->second];
+    const TileVariation* var = tex.getVariation(size);
+
+    if (!var) {
+        std::cout << "This should NEVER happen\n";
+    }
+    TextureId tid = var->getTextureId();
+    UVRect rect = var->getUV(index);
+    AtlasUV res = TextureAtlasSystem::getInstance().getUV(tid);
+    res.u0 = rect.u0;
+    res.u1 = rect.u1;
+    res.v0 = rect.v0;
+    res.v1 = rect.v1;
+    return res;
+}
+
