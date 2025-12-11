@@ -52,26 +52,22 @@ void Surface::create_entity(sol::table args) {
     Coordinator::Instance().AddComponent(toadd, dir);
     Coordinator::Instance().AddComponent(toadd, PrototypeRegister::getInstance().GetIdByName(name));
         if(name=="fast-transport-belt") {
-            if(!done) {
-                BeltComponent belt{
-                    {
-                        // lane 0
-                        std::vector<BeltItemData>{
-                            BeltItemData{
-                                PrototypeRegister::getInstance().GetIdByName("fast-transport-belt"),
-                                0
-                            }
-                        },
-                    }
-                };
-                 Coordinator::Instance().AddComponent(toadd, belt);
-                 done = 1;
+            if (!done) {
+                BeltComponent belt{};
+                PrototypeID id = PrototypeRegister::getInstance().GetIdByName("fast-transport-belt");
+                belt.itemPositions[0].push_back(BeltItemData{ id, 0 });
+                belt.itemPositions[1].push_back(BeltItemData{ id, 0 });
+                Coordinator::Instance().AddComponent(toadd, belt);
+                done = 1;
             } else {
                 BeltComponent belt{
                     {
                     }
                 };
+                belt.isCorner = args["iscorner"].get_or(false),
+                belt.cornerFromDir = args["direction1"].get_or(Direction::North),
                  Coordinator::Instance().AddComponent(toadd, belt);
+                 std::cout << "[Surface] Creating belt: " << name << " at (" << x << ", " << y << ") direction: " << dir << "isCorner: " << belt.isCorner << "belt.cornerToDir: " << belt.cornerFromDir << std::endl;
             }
     }
     chunks[getTileChunkCoord(x, y).chunk]->addEntity(toadd);

@@ -9,6 +9,7 @@
 #include <Simulation/BeltMovementSystem.h>
 #include <Tile/TileTextureManager.h>
 #include <Surface/Surface.h>
+#include <Simulation/BeltMovementSystem.h>
 #include <misc.h>
 
 const float tileSize = 32.0f;
@@ -72,6 +73,109 @@ void craftingMachineToRender(std::vector<RenderObject>& queue, const CraftingMac
     }
 }
 
+constexpr float PI = 3.1415926535f;
+
+struct Vec2f { float x, y; };
+
+Vec2f dirToVec(Direction d)
+{
+    switch (d) {
+        case Direction::East:  return {  1.0f,  0.0f };
+        case Direction::West:  return { -1.0f,  0.0f };
+        case Direction::North: return {  0.0f,  1.0f };
+        case Direction::South: return {  0.0f, -1.0f };
+    }
+    return {0,0};
+}
+
+float directionToAngle(Direction d)
+{
+    switch (d) {
+        case Direction::East:  return 0.0f;
+        case Direction::North: return 0.5f * PI;
+        case Direction::West:  return PI;
+        case Direction::South: return 1.5f * PI;
+    }
+    return 0.0f;
+}
+
+void ComputeItemWorldPosition(const Vec2& tilePos,
+                              const BeltComponent& beltComp,
+                              Direction toDir,
+                              std::size_t lane,
+                              uint16_t startPos,
+                              float tileSize,
+                              float& worldX,
+                              float& worldY)
+{
+    Direction fromDir = beltComp.cornerFromDir;
+
+    float halfTile = 0.5f * tileSize;
+    float centerX = tilePos.x * tileSize + halfTile;
+    float centerY = tilePos.y * tileSize + halfTile;
+
+    if (!beltComp.isCorner)
+    {
+        float offset    = (startPos / float(STRAIGHT_POSITIONS_PER_LANE)) * tileSize;
+        float laneOffset = tileSize * 0.35f;
+        float side       = (lane == 0) ? -laneOffset : laneOffset;
+
+        Vec2f dir = dirToVec(toDir);
+        worldX = centerX + dir.x * (offset - halfTile);
+        worldY = centerY + dir.y * (offset - halfTile);
+        float perpX = -dir.y;
+        float perpY = dir.x;
+
+        worldX += perpX * side;
+        worldY += perpY * side;
+        worldX -= 16;
+        worldY -= 16;
+        return;
+    }
+
+    bool inner = IsInnerLane(lane, fromDir, toDir);
+
+    const int positionsPerLane =
+        inner ? CORNER_INNER_POSITIONS_PER_LANE : CORNER_OUTER_POSITIONS_PER_LANE;
+
+    float t = startPos / float(positionsPerLane);
+
+
+    Vec2f vTo   = dirToVec(toDir);
+    Vec2f vFrom = dirToVec(fromDir);
+    // Decide for circle center, it is alvays in a corner, but what corner, using reletive from vector is relevant here (NOT A BUG)
+    if(vFrom.x == 0) {
+        centerY = (tilePos.y+(0.5f*vFrom.y)) * tileSize;
+        centerX = (tilePos.x+(0.5f*vTo.x)) * tileSize;
+    } else {
+        centerY = (tilePos.y+(0.5f*vTo.y)) * tileSize;
+        centerX = (tilePos.x+(0.5f*vFrom.x)) * tileSize;
+    }
+
+    // Different radius for inner vs outer lane
+    float innerRadius = tileSize * 0.15f;
+    float outerRadius = tileSize * 0.85f;
+    float radius      = inner ? innerRadius :  outerRadius;
+
+    float angleFromDir = directionToAngle(fromDir);
+    // FROM unlike TO is RELETIVE to this tile not compass accurate thus west means object is moving EAST towars positive X, and enters from west
+    vFrom.x = -vFrom.x;
+    vFrom.y = -vFrom.y;
+
+    float cross = vFrom.x * vTo.y - vFrom.y * vTo.x;
+    float sign = (cross > 0.0f) ? 1.0f : -1.0f;
+    float delta = sign * (0.5f * PI);
+
+    float angleStart = angleFromDir + sign * (0.5f * PI);
+    float angle      = angleStart + t * delta;
+
+    float localX = std::cos(angle) * radius;
+    float localY = std::sin(angle) * radius;
+
+    worldX = centerX + localX;
+    worldY = centerY + localY;
+}
+
 void transportBeltToRender(std::vector<RenderObject>& queue, const TransportBeltConnectablePrototype* belt, const Vec2& pos, Entity entity) {
     RenderObject ro;
     if(belt->get_animation_set()->getAnimation()->getLayersCount()!=0) {
@@ -89,8 +193,14 @@ void transportBeltToRender(std::vector<RenderObject>& queue, const TransportBelt
             queue.push_back(ro);
         }
     } else {
+        uint8_t dir;
         // TBD: is single direction belt texture in this context a thing?
-        uint8_t dir = belt->get_animation_set()->directionToDirectionID(Coordinator::Instance().GetComponent<Direction>(entity)) - 1;
+        if(Coordinator::Instance().GetComponent<BeltComponent>(entity).isCorner) {
+            std::cout << "Got corner belt!" << "\n";
+            dir = belt->get_animation_set()->cornerDirectionToDirectionID(Coordinator::Instance().GetComponent<BeltComponent>(entity).cornerFromDir, Coordinator::Instance().GetComponent<Direction>(entity)) - 1;
+        } else {
+            dir = belt->get_animation_set()->directionToDirectionID(Coordinator::Instance().GetComponent<Direction>(entity)) - 1;
+        }
         AnimationFrameComponent &frameid = Coordinator::Instance().GetComponent<AnimationFrameComponent>(entity);
         // Initial frame would be set to 0, adjust depending on belt direction
         if(frameid.frame < dir*(belt->get_animation_set()->getAnimation()->getFrameCount())) {
@@ -130,32 +240,8 @@ void transportBeltToRender(std::vector<RenderObject>& queue, const TransportBelt
                 Direction dir = Coordinator::Instance().GetComponent<Direction>(entity);
                 float offset = (item.start_pos / float(256)) * tileSize;
 
-                float worldX = pos.x * tileSize;
-                float worldY = pos.y * tileSize;
-                float laneOffset = tileSize * 0.35f;
-                float side = (lane == 0) ? -laneOffset : laneOffset;
-
-                switch (dir) {
-                    case Direction::East:
-                        worldX += offset;
-                        worldY += side;
-                        break;
-
-                    case Direction::West:
-                        worldX -= offset;
-                        worldY += side;
-                        break;
-
-                    case Direction::South:
-                        worldX += side;
-                        worldY += offset;
-                        break;
-
-                    case Direction::North:
-                        worldX += side;
-                        worldY -= offset;
-                        break;
-                }
+                float worldX, worldY;
+                ComputeItemWorldPosition(pos, Coordinator::Instance().GetComponent<BeltComponent>(entity), Coordinator::Instance().GetComponent<Direction>(entity), lane, item.start_pos, tileSize, worldX, worldY);
 
                 ro.x = worldX;
                 ro.y = worldY;
