@@ -77,6 +77,7 @@ int main() {
     //HACK: Just to test parsing
     atlas->buildFromLua(luaEngine->getState(), "furnace");
     atlas->buildFromLua(luaEngine->getState(), "transport-belt");
+    atlas->buildFromLua(luaEngine->getState(), "inserter");
     luaEngine->callOnInit();
     ttm->loadFromLua(luaEngine->getState());
     TextureAtlasSystem::getInstance().bake();

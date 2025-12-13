@@ -10,6 +10,7 @@
 #include <Prototype/PrototypeRegister.h>
 #include <EntitiesPrototypes/FurnacePrototype.h>
 #include <EntitiesPrototypes/TransportBeltConnectablePrototype.h>
+#include <EntitiesPrototypes/InserterPrototype.h>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <bgfx/bimg/3rdparty/stb/stb_image.h>
@@ -68,6 +69,9 @@ for (auto& kv : entities) {
         pi = PrototypeRegister::getInstance().AddPrototype(std::move(proto));
     } else if (entityType == "transport-belt") {
         auto proto = std::make_unique<TransportBeltConnectablePrototype>(def);
+        pi = PrototypeRegister::getInstance().AddPrototype(std::move(proto));
+    } else if (entityType == "inserter") {
+        auto proto = std::make_unique<InserterPrototype>(def);
         pi = PrototypeRegister::getInstance().AddPrototype(std::move(proto));
     }
     sol::object picture  = def["picture"];

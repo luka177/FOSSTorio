@@ -8,6 +8,11 @@ struct Vec2 {
     int64_t y;
 };
 
+struct Vec2d {
+    double x;
+    double y;
+};
+
 enum class Direction {
     North = 0,
     NorthNorthEast,

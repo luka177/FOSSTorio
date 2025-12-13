@@ -3,6 +3,8 @@
 
 #include <sol/sol.hpp>
 
+using SpriteSizeType = int16_t;
+
 enum class SpritePriority {
     ExtraHighNoScale,
     ExtraHigh,

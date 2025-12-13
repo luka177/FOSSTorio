@@ -1,9 +1,8 @@
 #pragma once
 #include <Atlas/TextureAtlasSystem.h>
+#include <Sprite/SpriteTypes.h>
 
 #include <sol/sol.hpp>
-
-using SpriteSizeType = int16_t;
 
 class SpriteSource {
 public:
