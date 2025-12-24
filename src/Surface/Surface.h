@@ -32,7 +32,7 @@ public:
     const std::unordered_map<ChunkCoord, std::unique_ptr<Chunk>, ChunkCoordHash>& getChunks() const {
         return chunks;
     }
-
+    std::optional<Entity> FindEntityByCoords(int64_t x, int64_t y);
 private:
     Camera *camera;
     TileTextureManager *ttm;

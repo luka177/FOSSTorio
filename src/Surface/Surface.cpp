@@ -85,6 +85,18 @@ void Surface::update(double dt) {
 //    }
 }
 
+std::optional<Entity> Surface::FindEntityByCoords(int64_t x, int64_t y) {
+    struct TileChunkCoord coords = getTileChunkCoord(x, y);
+    const std::vector<Entity>& entities = chunks[coords.chunk]->getEntityList();
+    for(Entity entity : entities) {
+        const Vec2& pos = Coordinator::Instance().GetComponent<Vec2>(entity);
+        if(pos.x == x && pos.y == y) {
+            return entity;
+        }
+    }
+    return std::nullopt;
+}
+
 void Surface::draw(bgfx::VertexBufferHandle vbo, bgfx::IndexBufferHandle ibo, bgfx::ProgramHandle program) {
     statate_to_render(camera, ttm, renderQueue, this);
     const auto& queue = renderQueue.getFrontList();

@@ -6,6 +6,8 @@
 struct Vec2 {
     int64_t x;
     int64_t y;
+
+    bool operator==(const Vec2&) const = default;
 };
 
 struct Vec2d {
