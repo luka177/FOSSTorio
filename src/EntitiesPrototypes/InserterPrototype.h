@@ -10,13 +10,33 @@ class InserterPrototype: public EntityWithOwnerPrototype {
 public:
     InserterPrototype(sol::table entities);
     virtual ~InserterPrototype() = default;
-
+    const double get_extension_speed() const {
+        return extension_speed;
+    };
+    const double get_rotation_speed() const {
+        return rotation_speed;
+    };
+    const Vec2d get_insert_position() const {
+        return insert_position;
+    }
+    const Vec2d get_pickup_position() const {
+        return pickup_position;
+    }
+    const std::optional<Sprite> get_hand_base_picture() const {
+        return hand_base_picture;
+    }
+    const std::optional<Sprite> get_hand_open_picture() const {
+        return hand_open_picture;
+    }
+    const std::optional<Sprite> get_hand_closed_picture() const {
+        return hand_closed_picture;
+    }
 protected:
     double extension_speed;
     double rotation_speed;
     double starting_distance = 0.7;
-    struct Vec2d insert_position;
-    struct Vec2d pickup_position;
+    Vec2d insert_position;
+    Vec2d pickup_position;
     std::optional<Sprite4Way> platform_picture;
     std::optional<Sprite4Way> platform_frozen;
     std::optional<Sprite> hand_base_picture;

@@ -10,6 +10,7 @@
 #include <EntitiesPrototypes/TransportBeltConnectablePrototype.h>
 #include <Animation/AnimationParameters.h>
 #include <Simulation/BeltMovementSystem.h>
+#include <Simulation/InserterSystem.h>
 #include <misc.h>
 
 #include <bgfx/bgfx.h>
@@ -50,6 +51,7 @@ void Surface::create_entity(sol::table args) {
     Coordinator::Instance().AddComponent(toadd, position);
     Coordinator::Instance().AddComponent(toadd, frameid);
     Coordinator::Instance().AddComponent(toadd, dir);
+    Coordinator::Instance().AddComponent(toadd, this);
     Coordinator::Instance().AddComponent(toadd, PrototypeRegister::getInstance().GetIdByName(name));
         if(name=="fast-transport-belt") {
             if (!done) {
@@ -69,6 +71,10 @@ void Surface::create_entity(sol::table args) {
                  Coordinator::Instance().AddComponent(toadd, belt);
                  std::cout << "[Surface] Creating belt: " << name << " at (" << x << ", " << y << ") direction: " << dir << "isCorner: " << belt.isCorner << "belt.cornerToDir: " << belt.cornerFromDir << std::endl;
             }
+    }
+    if(name=="fast-inserter") {
+        InserterComponent inserter{};
+        Coordinator::Instance().AddComponent(toadd, inserter);
     }
     chunks[getTileChunkCoord(x, y).chunk]->addEntity(toadd);
 

@@ -1,6 +1,7 @@
-#include "EntitiesPrototypesTypes.h"
 #include <unordered_map>
 #include <iostream>
+
+#include "EntitiesPrototypesTypes.h"
 
 static const std::unordered_map<std::string, EntityPrototypeFlags> flagMap = {
     {"not-rotatable",            NotRotatable},
@@ -126,6 +127,50 @@ BoundingBox parseBoundingBox(sol::object obj) {
     box.right_bottom.y  = rb[2].get_or(0.0);
 
     return box;
+}
+
+static double object_to_double_or(sol::object o, double def) {
+    if (!o.valid() || o == sol::nil) return def;
+
+    if (o.get_type() == sol::type::number) {
+        return o.as<double>();
+    }
+
+    return def;
+}
+
+Vec2d parseVector(sol::object obj) {
+    Vec2d vec{0.0, 0.0};
+
+    if (!obj.valid() || obj == sol::nil) {
+        return vec; // default
+    }
+
+    if (obj.get_type() != sol::type::table) {
+        throw std::runtime_error("vector must be a table: {x,y} or {x=..., y=...}");
+    }
+
+    sol::table tbl = obj.as<sol::table>();
+
+    // Prefer dictionary form if x/y exist
+    sol::object xField = tbl["x"];
+    sol::object yField = tbl["y"];
+    bool hasXY = (xField.valid() && xField != sol::nil) || (yField.valid() && yField != sol::nil);
+
+    if (hasXY) {
+        vec.x = object_to_double_or(xField, 0.0);
+        vec.y = object_to_double_or(yField, 0.0);
+        return vec;
+    }
+
+    // Otherwise treat as array form { [1]=x, [2]=y }
+    sol::object first  = tbl[1];
+    sol::object second = tbl[2];
+
+    vec.x = object_to_double_or(first, 0.0);
+    vec.y = object_to_double_or(second, 0.0);
+
+    return vec;
 }
 
 EffectTypeLimitation effectFromString(const std::string& s) {

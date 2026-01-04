@@ -42,10 +42,10 @@ private:
     float projMatrix[16];
     NormalColorVertex kTriangleVertices[4] =
     {
-        { -0.5f, -0.5f, 0.0f, 1.0f },
-        {  0.5f, -0.5f, 1.0f, 1.0f },
-        {  0.5f,  0.5f, 1.0f, 0.0f },
-        { -0.5f,  0.5f, 0.0f, 0.0f },
+        { -0.5f, 0.0f, 0.0f, 1.0f },
+        {  0.5f, 0.0f, 1.0f, 1.0f },
+        {  0.5f, 1.0f, 1.0f, 0.0f },
+        { -0.5f, 1.0f, 0.0f, 0.0f },
     };
 
   const uint16_t kTriangleIndices[6] =

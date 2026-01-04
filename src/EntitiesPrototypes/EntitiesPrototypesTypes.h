@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 
+#include <misc.h>
+
 #include <sol/sol.hpp>
 
 typedef float RealOrientation;
@@ -173,3 +175,4 @@ RemoveDecoratives parseRemoveDecoratives(const std::string& s);
 BoundingBox parseBoundingBox(sol::object obj);
 EffectTypeLimitation effectFromString(const std::string& s);
 RenderLayer renderLayerFromString(const std::string& s);
+Vec2d parseVector(sol::object obj);

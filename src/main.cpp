@@ -7,7 +7,9 @@
 #include <Entity/Coordinator.h>
 #include <Prototype/PrototypeRegister.h>
 #include <Animation/AnimationParameters.h>
+#include <Surface/Surface.h>
 #include <Simulation/BeltMovementSystem.h>
+#include <Simulation/InserterSystem.h>
 #include <misc.h>
 
 // Global pointer TBD: put inside a GameManager or globalize
@@ -50,6 +52,8 @@ int main() {
     Coordinator::Instance().RegisterComponent<AnimationFrameComponent>();
     Coordinator::Instance().RegisterComponent<Direction>();
     Coordinator::Instance().RegisterComponent<BeltComponent>();
+    Coordinator::Instance().RegisterComponent<InserterComponent>();
+    Coordinator::Instance().RegisterComponent<Surface*>();
 
     // TBD: Globalize or put into GameManager
     std::unique_ptr<Camera> camera = std::make_unique<Camera>((GLFWwindow*)window->getNativeHandle());

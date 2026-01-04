@@ -5,11 +5,12 @@
 #include <Entity/Coordinator.h>
 #include <EntitiesPrototypes/CraftingMachinePrototype.h>
 #include <EntitiesPrototypes/TransportBeltConnectablePrototype.h>
+#include <EntitiesPrototypes/InserterPrototype.h>
 #include <Animation/AnimationParameters.h>
-#include <Simulation/BeltMovementSystem.h>
 #include <Tile/TileTextureManager.h>
 #include <Surface/Surface.h>
 #include <Simulation/BeltMovementSystem.h>
+#include <Simulation/InserterSystem.h>
 #include <misc.h>
 
 const float tileSize = 32.0f;
@@ -73,32 +74,6 @@ void craftingMachineToRender(std::vector<RenderObject>& queue, const CraftingMac
     }
 }
 
-constexpr float PI = 3.1415926535f;
-
-struct Vec2f { float x, y; };
-
-Vec2f dirToVec(Direction d)
-{
-    switch (d) {
-        case Direction::East:  return {  1.0f,  0.0f };
-        case Direction::West:  return { -1.0f,  0.0f };
-        case Direction::North: return {  0.0f,  1.0f };
-        case Direction::South: return {  0.0f, -1.0f };
-    }
-    return {0,0};
-}
-
-float directionToAngle(Direction d)
-{
-    switch (d) {
-        case Direction::East:  return 0.0f;
-        case Direction::North: return 0.5f * PI;
-        case Direction::West:  return PI;
-        case Direction::South: return 1.5f * PI;
-    }
-    return 0.0f;
-}
-
 void ComputeItemWorldPosition(const Vec2& tilePos,
                               const BeltComponent& beltComp,
                               Direction toDir,
@@ -120,7 +95,7 @@ void ComputeItemWorldPosition(const Vec2& tilePos,
         float laneOffset = tileSize * 0.35f;
         float side       = (lane == 0) ? -laneOffset : laneOffset;
 
-        Vec2f dir = dirToVec(toDir);
+        Vec2 dir = dirToVec(toDir);
         worldX = centerX + dir.x * (offset - halfTile);
         worldY = centerY + dir.y * (offset - halfTile);
         float perpX = -dir.y;
@@ -129,7 +104,8 @@ void ComputeItemWorldPosition(const Vec2& tilePos,
         worldX += perpX * side;
         worldY += perpY * side;
         worldX -= 16;
-        worldY -= 16;
+        // HACK: Center pos changed, just offset for now
+        worldY -= 8;
         return;
     }
 
@@ -141,8 +117,8 @@ void ComputeItemWorldPosition(const Vec2& tilePos,
     float t = startPos / float(positionsPerLane);
 
 
-    Vec2f vTo   = dirToVec(toDir);
-    Vec2f vFrom = dirToVec(fromDir);
+    Vec2 vTo   = dirToVec(toDir);
+    Vec2 vFrom = dirToVec(fromDir);
     // Decide for circle center, it is alvays in a corner, but what corner, using reletive from vector is relevant here (NOT A BUG)
     if(vFrom.x == 0) {
         centerY = (tilePos.y+(0.5f*vFrom.y)) * tileSize;
@@ -151,7 +127,8 @@ void ComputeItemWorldPosition(const Vec2& tilePos,
         centerY = (tilePos.y+(0.5f*vTo.y)) * tileSize;
         centerX = (tilePos.x+(0.5f*vFrom.x)) * tileSize;
     }
-
+    // HACK: Center pos changed, just offset for now
+    centerY += 8;
     // Different radius for inner vs outer lane
     float innerRadius = tileSize * 0.15f;
     float outerRadius = tileSize * 0.85f;
@@ -184,7 +161,7 @@ void transportBeltToRender(std::vector<RenderObject>& queue, const TransportBelt
             const struct AtlasUV& uv = TextureAtlasSystem::getInstance().getUV(anim.getSprite());
             ro.tex = TextureAtlasSystem::getInstance().getUV(anim.getSprite());
             ro.x = pos.x * tileSize;
-            ro.y = pos.y * tileSize;
+            ro.y = pos.y * tileSize - tileSize * 0.5f;
             ro.w = anim.getWidth();
             ro.h = anim.getHeight();
             ro.rotation = 0;
@@ -196,7 +173,6 @@ void transportBeltToRender(std::vector<RenderObject>& queue, const TransportBelt
         uint8_t dir;
         // TBD: is single direction belt texture in this context a thing?
         if(Coordinator::Instance().GetComponent<BeltComponent>(entity).isCorner) {
-            std::cout << "Got corner belt!" << "\n";
             dir = belt->get_animation_set()->cornerDirectionToDirectionID(Coordinator::Instance().GetComponent<BeltComponent>(entity).cornerFromDir, Coordinator::Instance().GetComponent<Direction>(entity)) - 1;
         } else {
             dir = belt->get_animation_set()->directionToDirectionID(Coordinator::Instance().GetComponent<Direction>(entity)) - 1;
@@ -216,7 +192,7 @@ void transportBeltToRender(std::vector<RenderObject>& queue, const TransportBelt
         }
 
         ro.x = pos.x * tileSize;
-        ro.y = pos.y * tileSize;
+        ro.y = pos.y * tileSize - tileSize * 0.5f;
         //TBD: dont hardcode 64x64?
         ro.w = 64;
         ro.h = 64;
@@ -234,8 +210,6 @@ void transportBeltToRender(std::vector<RenderObject>& queue, const TransportBelt
         {
             if (item.itemPrototype) {
                 ro.tex = TextureAtlasSystem::getInstance().getUV((dynamic_cast<const TransportBeltConnectablePrototype*>(PrototypeRegister::getInstance().GetPrototypeByID(item.itemPrototype.value()))->getIcon()));
-                std::cout << "Lane " << lane << ": item prototype = "
-                        << *item.itemPrototype << ", pos = " <<  static_cast<int>(item.start_pos) << "\n";
 
                 Direction dir = Coordinator::Instance().GetComponent<Direction>(entity);
                 float offset = (item.start_pos / float(256)) * tileSize;
@@ -254,6 +228,51 @@ void transportBeltToRender(std::vector<RenderObject>& queue, const TransportBelt
             }
         }
     }
+}
+
+static Vec2f rotate(Vec2f v, float rad) {
+    float c = cosf(rad), s = sinf(rad);
+    return { v.x * c - v.y * s, v.x * s + v.y * c };
+}
+
+void inserterToRender(std::vector<RenderObject>& queue,
+                      const InserterPrototype* inserter,
+                      const Vec2& pos,
+                      Entity entity)
+{
+    const auto& ic = Coordinator::Instance().GetComponent<InserterComponent>(entity);;
+
+    RenderObject ro;
+     float rot = float(PI * 0.5) - float(ic.rotation * 2.0 * PI);
+     if (rot < 0.0f) rot += float(2.0 * PI);
+    std::cout << "inserterToRender rot: " << rot << " ic.rotation: " << ic.rotation << "\n";
+    // Base
+    ro.tex = TextureAtlasSystem::getInstance().getUV(
+        inserter->get_hand_base_picture().value().getSprite()
+    );
+    // base is centered on tile
+    ro.w = 8;
+    ro.h = 34;
+    ro.x = pos.x * tileSize;
+    ro.y = pos.y * tileSize + tileSize*0.5f;
+    ro.rotation = rot;
+    ro.layer = RenderLayer::ItemInInserterHand;
+    ro.state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_BLEND_NORMAL;
+    queue.push_back(ro);
+
+    // Hand
+    ro.tex = TextureAtlasSystem::getInstance().getUV(
+        inserter->get_hand_open_picture().value().getSprite()
+    );
+
+    ro.x = (pos.x * tileSize) + (std::sin(rot) * 34);
+    ro.y = (pos.y * tileSize + tileSize*0.5f) + (std::cos(rot) * 34);
+    ro.w = 10;
+    ro.h = 41;
+    ro.rotation = rot;
+    ro.layer = RenderLayer::ItemInInserterHand;
+    ro.state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_BLEND_NORMAL;
+    queue.push_back(ro);
 }
 
 void statate_to_render(Camera *camera, TileTextureManager *ttm, RenderQueue& renderQueue, Surface *surface) {
@@ -301,6 +320,8 @@ void statate_to_render(Camera *camera, TileTextureManager *ttm, RenderQueue& ren
                 craftingMachineToRender(queue, machine, pos, entity);
             } else if (const TransportBeltConnectablePrototype* belt = dynamic_cast<const TransportBeltConnectablePrototype*>(proto)) {
                 transportBeltToRender(queue, belt, pos, entity);
+            } else if (const InserterPrototype* inserter = dynamic_cast<const InserterPrototype*>(proto)) {
+                inserterToRender(queue, inserter, pos, entity);
             }
         }
     }

@@ -9,7 +9,7 @@
 class SpriteParmeters : public SpriteSource {
 public:
     SpriteParmeters(sol::table spritesource, bool load_texture = true);
-    double getScale() {
+    const double getScale() const {
         return scale;
     }
 

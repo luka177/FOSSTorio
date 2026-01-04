@@ -19,13 +19,13 @@ InserterPrototype::InserterPrototype(sol::table entity)
     starting_distance = entity["circuit_wire_max_distance"].get_or(0.7);
 
     if(entity["insert_position"].valid()) {
-       // rotation_speed = (entity["rotation_speed"]).as<double>();
+        insert_position = parseVector(entity["insert_position"].get<sol::table>());
     } else {
         throw std::runtime_error("[InserterPrototype] insert_position isnt optional, but is missing!\n");
     }
 
     if(entity["pickup_position"].valid()) {
-       // rotation_speed = (entity["rotation_speed"]).as<double>();
+        pickup_position = parseVector(entity["pickup_position"].get<sol::table>());
     } else {
         throw std::runtime_error("[InserterPrototype] pickup_position isnt optional, but is missing!\n");
     }

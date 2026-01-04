@@ -6,6 +6,7 @@
 #include <Chunk.h>
 #include <Tile/TileTextureManager.h>
 #include <Renderer/RenderQueue.h>
+#include <misc.h>
 
 #include <sol/sol.hpp>
 #include <bgfx/bgfx.h>
@@ -33,6 +34,14 @@ public:
         return chunks;
     }
     std::optional<Entity> FindEntityByCoords(int64_t x, int64_t y);
+    template<class T>
+    std::optional<Entity> FindEntityByCoords(const Vec2T<T>& global_coord) {
+     const int64_t x = static_cast<int64_t>(std::floor(global_coord.x));
+     const int64_t y = static_cast<int64_t>(std::floor(global_coord.y));
+
+        return FindEntityByCoords(x, y);
+    }
+
 private:
     Camera *camera;
     TileTextureManager *ttm;

@@ -22,11 +22,11 @@ public:
         }
     }
 
-    SpriteSizeType getWidth() {
+    const SpriteSizeType getWidth() const {
         return width;
     }
 
-    SpriteSizeType getHeight() {
+    const SpriteSizeType getHeight() const {
         return height;
     }
 protected:
