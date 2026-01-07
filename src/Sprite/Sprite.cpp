@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include <Sprite/Sprite.h>
 
 Sprite::Sprite(sol::table sprite)

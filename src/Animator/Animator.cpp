@@ -11,6 +11,7 @@
 #include <Surface/Surface.h>
 #include <Simulation/BeltMovementSystem.h>
 #include <Simulation/InserterSystem.h>
+#include <Item/ItemRegister.h>
 #include <misc.h>
 
 const float tileSize = 32.0f;
@@ -208,8 +209,8 @@ void transportBeltToRender(std::vector<RenderObject>& queue, const TransportBelt
 
         for (auto& item : laneVec)
         {
-            if (item.itemPrototype) {
-                ro.tex = TextureAtlasSystem::getInstance().getUV((dynamic_cast<const TransportBeltConnectablePrototype*>(PrototypeRegister::getInstance().GetPrototypeByID(item.itemPrototype.value()))->getIcon()));
+            if (ItemRegister::getInstance().Get(item.item.value()).prototype.has_value()) {
+                ro.tex = TextureAtlasSystem::getInstance().getUV((dynamic_cast<const TransportBeltConnectablePrototype*>(PrototypeRegister::getInstance().GetPrototypeByID(ItemRegister::getInstance().Get(item.item.value()).prototype.value()))->getIcon()));
 
                 Direction dir = Coordinator::Instance().GetComponent<Direction>(entity);
                 float offset = (item.start_pos / float(256)) * tileSize;

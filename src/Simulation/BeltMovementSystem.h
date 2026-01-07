@@ -7,6 +7,7 @@
 #include <misc.h>
 #include <Entity/EntityManager.h>
 #include <Tile/Tile.h>
+#include <Item/ItemRegister.h>
 
 #include <Prototype/PrototypeRegister.h>
 
@@ -19,7 +20,7 @@ constexpr int LANES_PER_BELT = 2;
 //TBD: we need items register, items can have quality and health
 struct BeltItemData
 {
-    std::optional<PrototypeID> itemPrototype;
+    std::optional<ItemId> item;
     int16_t start_pos;
 };
 

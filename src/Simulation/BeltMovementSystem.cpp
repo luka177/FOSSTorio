@@ -1,5 +1,6 @@
 #include <Simulation/BeltMovementSystem.h>
 #include <Entity/Coordinator.h>
+#include <Item/ItemRegister.h>
 
 //TBD: read from prototype?
 constexpr int TICK_MOVE_POSITIONS = 8;
@@ -95,7 +96,7 @@ void BeltMovementSystem::MoveItemsInLane(int laneIndex, BeltComponent& beltComp,
     for (auto it = beltComp.itemPositions[laneIndex].rbegin();
          it != beltComp.itemPositions[laneIndex].rend(); ++it)
     {
-        if (it->itemPrototype.has_value())
+        if (it->item.has_value())
         {
             int new_pos = it->start_pos + TICK_MOVE_POSITIONS;
             if (std::next(it) != beltComp.itemPositions[laneIndex].rend())
@@ -136,7 +137,7 @@ void BeltMovementSystem::PushItemToNextTile(int laneIndex, BeltComponent& curren
             }
 
             BeltItemData newItemData;
-            newItemData.itemPrototype = exitingItemData.itemPrototype;
+            newItemData.item = exitingItemData.item;
             newItemData.start_pos = entry_pos;
             nextBeltComp.itemPositions[laneIndex].insert(
                 nextBeltComp.itemPositions[laneIndex].begin(),
