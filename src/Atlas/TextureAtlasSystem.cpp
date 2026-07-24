@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cstring>
 #include <fstream>
+#include <limits>
 
 #include <Atlas/TextureAtlasSystem.h>
 
@@ -72,6 +73,88 @@ bool writeBmp32(const char* filename, int width, int height, const uint8_t* rgba
     }
 
     return true;
+}
+
+// Skyline (bottom-left) bin packer: keeps a contour of the tallest occupied point per
+// x-range, so shorter images can slot in under taller neighbours instead of wasting
+// the rest of a shelf's row height, unlike naive shelf packing.
+struct SkylineNode {
+    int x;
+    int y;
+    int width;
+};
+
+static bool skylineRectFits(const std::vector<SkylineNode>& skyline, std::size_t index,
+                             int w, int h, int atlasW, int atlasH, int& outY) {
+    int x = skyline[index].x;
+    if (x + w > atlasW) return false;
+
+    int widthLeft = w;
+    std::size_t i = index;
+    int y = 0;
+    while (widthLeft > 0) {
+        y = std::max(y, skyline[i].y);
+        if (y + h > atlasH) return false;
+        widthLeft -= skyline[i].width;
+        ++i;
+        if (widthLeft > 0 && i == skyline.size()) return false;
+    }
+
+    outY = y;
+    return true;
+}
+
+static bool skylineFindPosition(const std::vector<SkylineNode>& skyline, int w, int h,
+                                 int atlasW, int atlasH, int& bestX, int& bestY, std::size_t& bestIndex) {
+    int bestWidth = std::numeric_limits<int>::max();
+    bestY = std::numeric_limits<int>::max();
+    bool found = false;
+
+    for (std::size_t i = 0; i < skyline.size(); ++i) {
+        int y;
+        if (skylineRectFits(skyline, i, w, h, atlasW, atlasH, y)) {
+            if (y < bestY || (y == bestY && skyline[i].width < bestWidth)) {
+                bestY = y;
+                bestX = skyline[i].x;
+                bestWidth = skyline[i].width;
+                bestIndex = i;
+                found = true;
+            }
+        }
+    }
+
+    return found;
+}
+
+static void skylineAddLevel(std::vector<SkylineNode>& skyline, std::size_t index,
+                             int x, int y, int w, int h) {
+    skyline.insert(skyline.begin() + index, SkylineNode{x, y + h, w});
+
+    for (std::size_t i = index + 1; i < skyline.size(); ) {
+        SkylineNode& prev = skyline[i - 1];
+        SkylineNode& cur = skyline[i];
+
+        if (cur.x >= prev.x + prev.width) break;
+
+        int shrink = prev.x + prev.width - cur.x;
+        cur.x += shrink;
+        cur.width -= shrink;
+
+        if (cur.width <= 0) {
+            skyline.erase(skyline.begin() + i);
+        } else {
+            break;
+        }
+    }
+
+    for (std::size_t i = 0; i + 1 < skyline.size(); ) {
+        if (skyline[i].y == skyline[i + 1].y) {
+            skyline[i].width += skyline[i + 1].width;
+            skyline.erase(skyline.begin() + i + 1);
+        } else {
+            ++i;
+        }
+    }
 }
 
 TextureId TextureAtlasSystem::requestSprite(
@@ -175,9 +258,7 @@ void TextureAtlasSystem::bake() {
     }
 
     ATLAS_LOG("Images to pack: " << entries.size());
-    //TBD: SMART packing
-    // For now sort by height, as it allows to get slightly denser packing
-
+    // Skyline packing works best fed tallest-first
     std::sort(entries.begin(), entries.end(), [](const ImageEntry& a, const ImageEntry& b) {
         if (a.height != b.height) return a.height > b.height;
         return a.id < b.id;
@@ -191,71 +272,23 @@ void TextureAtlasSystem::bake() {
     ATLAS_LOG("Device maxTextureSize = " << maxTexSize
               << ", using atlasSize = " << atlasSize);
 
-    uint16_t currentAtlasId = 0;
-    int x = 0, y = 0, rowH = 0;
-    std::vector<uint8_t> atlasPixels(atlasSize * atlasSize * 4, 0);
-
-    auto flushAtlas = [&]() {
-        if (currentAtlasId > 0 || x > 0 || y > 0) {
-            size_t totalPixels = size_t(atlasSize) * size_t(atlasSize);
-            float efficiency = totalPixels > 0
-                ? float(usedPixelsThisPage) / float(totalPixels)
-                : 0.0f;
-
-            ATLAS_LOG("Atlas page " << currentAtlasId << " efficiency: "
-                    << (efficiency * 100.0f) << "% "
-                    << "(" << usedPixelsThisPage << "/" << totalPixels << " px)");
-
-            usedPixelsThisPage = 0;   // reset for next page
-
-            // upload current page
-            #ifdef ATLAS_DEBUG
-            {
-                std::string debugFilename = "debug_atlas_page_" + std::to_string(currentAtlasId) + ".bmp";
-                writeBmp32(debugFilename.c_str(), atlasSize, atlasSize, atlasPixels.data());
-                ATLAS_LOG("Dumped atlas page " << currentAtlasId << " to " << debugFilename);
-            }
-            #endif
-            const bgfx::Memory* mem = bgfx::copy(atlasPixels.data(), atlasPixels.size());
-            bgfx::TextureHandle handle = bgfx::createTexture2D(
-                (uint16_t)atlasSize, (uint16_t)atlasSize,
-                false, 1, bgfx::TextureFormat::RGBA8,
-                BGFX_SAMPLER_POINT, mem
-            );
-
-            AtlasPage page;
-            page.id = currentAtlasId;
-            page.handle = handle;
-            page.width = atlasSize;
-            page.height = atlasSize;
-            atlases.push_back(page);
-
-            ATLAS_LOG("Created atlas page " << currentAtlasId
-                  << " (" << atlasSize << "x" << atlasSize << ")");
-
-            currentAtlasId++;
-            std::fill(atlasPixels.begin(), atlasPixels.end(), 0);
-            x = y = rowH = 0;
-        }
+    // All pages stay open for the whole pass: a texture that doesn't fit the newest
+    // page can still land in a gap of an earlier one. A page is only ever read as
+    // "full" for the one texture that didn't fit it, not closed off for good -
+    // otherwise every texture after the first miss piles onto fresh pages while
+    // older ones sit half-empty.
+    struct Placement {
+        TextureId id;
+        int page;
+        int x;
+        int y;
     };
 
-    flushAtlas();
+    std::vector<std::vector<SkylineNode>> pageSkylines;
+    std::vector<Placement> placements;
 
     for (const auto& e : entries) {
         auto& tex = textures[e.id];
-
-        // a new row if needed
-        if (x + tex.width > atlasSize) {
-            x = 0;
-            y += rowH;
-            rowH = 0;
-        }
-
-        // a new atlas if needed
-        if (y + tex.height > atlasSize) {
-            ATLAS_LOG("Page " << currentAtlasId << " full, flushing and starting new");
-            flushAtlas();
-        }
 
         if (tex.width > atlasSize || tex.height > atlasSize) {
             std::cerr << "[Atlas] Texture too large for atlas: " << tex.path
@@ -263,37 +296,103 @@ void TextureAtlasSystem::bake() {
             continue;
         }
 
-        // Blit into current atlas
-        usedPixelsThisPage += size_t(tex.width) * size_t(tex.height);
-        for (int iy = 0; iy < tex.height; ++iy) {
-            for (int ix = 0; ix < tex.width; ++ix) {
-                int dst = ((y + iy) * atlasSize + (x + ix)) * 4;
-                int src = (iy * tex.width + ix) * 4;
-                std::memcpy(&atlasPixels[dst], &tex.pixels[src], 4);
+        // First-fit across pages, oldest first: comparing y globally would systematically
+        // favour whichever page is newest (a barely-used page offers a low y almost
+        // everywhere), starving genuine gaps in earlier pages that just happen to sit a
+        // bit higher up. Always give earlier pages first crack at every texture instead.
+        int bestPage = -1, bestX = 0, bestY = 0;
+        std::size_t bestIndex = 0;
+
+        for (std::size_t p = 0; p < pageSkylines.size(); ++p) {
+            int x, y;
+            std::size_t idx;
+            if (skylineFindPosition(pageSkylines[p], tex.width, tex.height, atlasSize, atlasSize, x, y, idx)) {
+                bestY = y;
+                bestX = x;
+                bestPage = static_cast<int>(p);
+                bestIndex = idx;
+                break;
             }
         }
 
-        // store UVs
-        AtlasUV& uv = uvs[e.id];
-        uv.atlasId = currentAtlasId;
-        uv.u0 = static_cast<float>(x) / atlasSize;
-        uv.v0 = static_cast<float>(y) / atlasSize;
-        uv.u1 = static_cast<float>(x + tex.width) / atlasSize;
-        uv.v1 = static_cast<float>(y + tex.height) / atlasSize;
+        if (bestPage < 0) {
+            pageSkylines.push_back({ SkylineNode{0, 0, atlasSize} });
+            bestPage = static_cast<int>(pageSkylines.size()) - 1;
+            if (!skylineFindPosition(pageSkylines[bestPage], tex.width, tex.height, atlasSize, atlasSize,
+                                      bestX, bestY, bestIndex)) {
+                std::cerr << "[Atlas] Failed to place texture on a fresh page: " << tex.path << "\n";
+                continue;
+            }
+        }
+
+        skylineAddLevel(pageSkylines[bestPage], bestIndex, bestX, bestY, tex.width, tex.height);
+        placements.push_back({ e.id, bestPage, bestX, bestY });
 
         ATLAS_LOG("Placed id " << e.id << " \"" << tex.path << "\""
-                  << " on page " << currentAtlasId
-                  << " at (" << x << ", " << y << ")"
-                  << " size (" << tex.width << "x" << tex.height << ")"
-                  << " UV [" << uv.u0 << ", " << uv.v0
-                  << " → " << uv.u1 << ", " << uv.v1 << "]");
-
-        x += tex.width;
-        rowH = std::max(rowH, tex.height);
+                  << " on page " << bestPage
+                  << " at (" << bestX << ", " << bestY << ")"
+                  << " size (" << tex.width << "x" << tex.height << ")");
     }
 
-    // The last atlas
-    flushAtlas();
+    // Only now that every texture has a final (page, x, y) do we rasterize and upload,
+    // one page at a time, so a page's pixel buffer is only ever needed transiently.
+    std::vector<uint8_t> atlasPixels(size_t(atlasSize) * size_t(atlasSize) * 4, 0);
+
+    for (std::size_t p = 0; p < pageSkylines.size(); ++p) {
+        std::fill(atlasPixels.begin(), atlasPixels.end(), 0);
+        usedPixelsThisPage = 0;
+
+        for (const auto& pl : placements) {
+            if (pl.page != static_cast<int>(p)) continue;
+
+            const auto& tex = textures[pl.id];
+            usedPixelsThisPage += size_t(tex.width) * size_t(tex.height);
+
+            for (int iy = 0; iy < tex.height; ++iy) {
+                for (int ix = 0; ix < tex.width; ++ix) {
+                    int dst = ((pl.y + iy) * atlasSize + (pl.x + ix)) * 4;
+                    int src = (iy * tex.width + ix) * 4;
+                    std::memcpy(&atlasPixels[dst], &tex.pixels[src], 4);
+                }
+            }
+
+            AtlasUV& uv = uvs[pl.id];
+            uv.atlasId = static_cast<uint16_t>(p);
+            uv.u0 = static_cast<float>(pl.x) / atlasSize;
+            uv.v0 = static_cast<float>(pl.y) / atlasSize;
+            uv.u1 = static_cast<float>(pl.x + tex.width) / atlasSize;
+            uv.v1 = static_cast<float>(pl.y + tex.height) / atlasSize;
+        }
+
+        size_t totalPixels = size_t(atlasSize) * size_t(atlasSize);
+        float efficiency = totalPixels > 0 ? float(usedPixelsThisPage) / float(totalPixels) : 0.0f;
+        ATLAS_LOG("Atlas page " << p << " efficiency: " << (efficiency * 100.0f) << "% "
+                  << "(" << usedPixelsThisPage << "/" << totalPixels << " px)");
+
+        #ifdef ATLAS_DEBUG
+        {
+            std::string debugFilename = "debug_atlas_page_" + std::to_string(p) + ".bmp";
+            writeBmp32(debugFilename.c_str(), atlasSize, atlasSize, atlasPixels.data());
+            ATLAS_LOG("Dumped atlas page " << p << " to " << debugFilename);
+        }
+        #endif
+
+        const bgfx::Memory* mem = bgfx::copy(atlasPixels.data(), atlasPixels.size());
+        bgfx::TextureHandle handle = bgfx::createTexture2D(
+            (uint16_t)atlasSize, (uint16_t)atlasSize,
+            false, 1, bgfx::TextureFormat::RGBA8,
+            BGFX_SAMPLER_POINT, mem
+        );
+
+        AtlasPage page;
+        page.id = static_cast<uint16_t>(p);
+        page.handle = handle;
+        page.width = atlasSize;
+        page.height = atlasSize;
+        atlases.push_back(page);
+
+        ATLAS_LOG("Created atlas page " << p << " (" << atlasSize << "x" << atlasSize << ")");
+    }
 
     for (std::size_t i = 0; i < textures.size(); ++i) {
     const auto& s = textures[i];
