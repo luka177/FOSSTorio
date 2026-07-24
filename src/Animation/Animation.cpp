@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include <Animation/Animation.h>
 
 Animation::Animation(sol::table animation)

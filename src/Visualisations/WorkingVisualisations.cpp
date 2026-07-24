@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include <Visualisations/WorkingVisualisations.h>
 
 WorkingVisualisations::WorkingVisualisations(sol::table workingvisualisations) {

@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <iostream>
 
 #include <Tile/TileTextureManager.h>
 

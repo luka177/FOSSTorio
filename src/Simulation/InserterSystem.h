@@ -7,6 +7,7 @@
 #include <misc.h>
 #include <Entity/EntityManager.h>
 #include <Tile/Tile.h>
+#include <Item/ItemRegister.h>
 
 #include <Prototype/PrototypeRegister.h>
 
@@ -15,8 +16,7 @@ struct InserterComponent
 {
     double rotation;
     double extension;
-    std::optional<PrototypeID> itemPrototype;
-    uint8_t itemCount;
+    std::optional<std::vector<ItemId>> items;
     Vec2d target;
     bool moveStarted;
 };

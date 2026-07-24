@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include <Visualisations/TransportBeltAnimationSet.h>
 
 TransportBeltAnimationSet::TransportBeltAnimationSet(sol::table transportbeltanimationset) {

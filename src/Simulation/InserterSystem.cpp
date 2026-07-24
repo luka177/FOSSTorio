@@ -102,10 +102,19 @@ void InserterSystem::ProcessInserterEntity(Entity entity, Vec2& pos, Direction& 
     Vec2 dstPos(pos+rotateVecToDirection(proto->get_insert_position(), dir));
     Vec2 srcPos(pos+rotateVecToDirection(proto->get_pickup_position(), dir));
     Vec2d srcPosf(pos+rotateVecToDirection(proto->get_pickup_position(), dir));
+    Vec2d dstPosf(pos+rotateVecToDirection(proto->get_insert_position(), dir));
     src = Coordinator::Instance().GetComponent<Surface*>(entity)->FindEntityByCoords(srcPos);
     dst = Coordinator::Instance().GetComponent<Surface*>(entity)->FindEntityByCoords(dstPos);
+    // We cant move items from or to nowhere, but even if there is no src/dst we should keep inserter hand at pickup position
+    if(!src || !dst) {
+        if(inserterComp.items.has_value())
+            move(pos, dir, dstPosf, proto->get_extension_speed(), proto->get_rotation_speed(), inserterComp);
+        else
+            move(pos, dir, srcPosf, proto->get_extension_speed(), proto->get_rotation_speed(), inserterComp);
+        return;
+    }
     const PrototypeBase *protoSrc = PrototypeRegister::getInstance().GetPrototypeByID(Coordinator::Instance().GetComponent<PrototypeID>(src.value()));
-//    const PrototypeBase *protoDst = PrototypeRegister::getInstance().GetPrototypeByID(Coordinator::Instance().GetComponent<PrototypeID>(dst.value()));
+    const PrototypeBase *protoDst = PrototypeRegister::getInstance().GetPrototypeByID(Coordinator::Instance().GetComponent<PrototypeID>(dst.value()));
 
     // Now we need to figure what to do,
     // If we have full stack of items (or started move to dst already) we only can move
@@ -134,12 +143,12 @@ void InserterSystem::ProcessInserterEntity(Entity entity, Vec2& pos, Direction& 
         {
             auto& laneVec = beltComp.itemPositions[lane];
 
-            for (auto& item : laneVec)
+            for (std::size_t i = 0; i < laneVec.size(); ++i)
             {
-                if (ItemRegister::getInstance().Get(item.item.value()).prototype.has_value()) {
-                    double offset = (item.start_pos / double(256)) * 32;
+                if (ItemRegister::getInstance().Get(laneVec[i].item.value()).prototype.has_value()) {
+                    double offset = (laneVec[i].start_pos / double(256)) * 32;
                     Vec2d itemPos;
-                    ComputeItemWorldPosition(srcPos, beltComp, Coordinator::Instance().GetComponent<Direction>(src.value()), lane, item.start_pos, itemPos.x, itemPos.y);
+                    ComputeItemWorldPosition(srcPos, beltComp, Coordinator::Instance().GetComponent<Direction>(src.value()), lane, laneVec[i].start_pos, itemPos.x, itemPos.y);
                     distance = VecToDistance(itemPos, toolhead);
                     if(distance < shortestDistance) {
                         shortestDistance = distance;

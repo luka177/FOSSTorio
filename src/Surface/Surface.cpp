@@ -55,10 +55,12 @@ void Surface::create_entity(sol::table args) {
     Coordinator::Instance().AddComponent(toadd, PrototypeRegister::getInstance().GetIdByName(name));
         if(name=="fast-transport-belt") {
             if (!done) {
+                struct Item belt_item;
+                belt_item.prototype = PrototypeRegister::getInstance().GetIdByName("fast-transport-belt");
                 BeltComponent belt{};
                 PrototypeID id = PrototypeRegister::getInstance().GetIdByName("fast-transport-belt");
-                belt.itemPositions[0].push_back(BeltItemData{ id, 0 });
-                belt.itemPositions[1].push_back(BeltItemData{ id, 0 });
+                belt.itemPositions[0].push_back(BeltItemData{ ItemRegister::getInstance().Add(belt_item), 0 });
+                belt.itemPositions[1].push_back(BeltItemData{ ItemRegister::getInstance().Add(belt_item), 0 });
                 Coordinator::Instance().AddComponent(toadd, belt);
                 done = 1;
             } else {

@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include <Prototype/Prototype.h>
 
 Prototype::Prototype(sol::table entity)
