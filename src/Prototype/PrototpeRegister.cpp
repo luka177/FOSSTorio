@@ -2,11 +2,23 @@
 
 #include <Prototype/PrototypeRegister.h>
 #include <Prototype/PrototypeBase.h>
+#include <Item/ItemPrototype.h>
 
 PrototypeID PrototypeRegister::AddPrototype(std::unique_ptr<PrototypeBase> proto) {
     PrototypeID id = next_id_++;
     const std::string& name = proto->getName();
-    name_to_id[name] = id;
+
+    std::map<std::string, PrototypeID>& targetMap =
+        dynamic_cast<ItemPrototype*>(proto.get()) ? item_name_to_id : name_to_id;
+
+    if (targetMap.find(name) == targetMap.end()) {
+        targetMap[name] = id;
+    } else {
+        std::cerr << "[PrototypeRegister] Duplicate prototype name \"" << name
+                  << "\", GetIdByName/GetItemIdByName will keep resolving to id " << targetMap[name]
+                  << " (this new id " << id << " is still reachable by id)\n";
+    }
+
     id_to_name[id] = name;
     proto->setId(id);
     id_to_prototype[id] = std::move(proto);
@@ -29,6 +41,14 @@ const PrototypeID PrototypeRegister::GetIdByName(const std::string& name) const 
     auto it = name_to_id.find(name);
     if (it == name_to_id.end()) {
         throw std::out_of_range("[PrototypeRegister] No prototype with name: " + name);
+    }
+    return it->second;
+}
+
+const PrototypeID PrototypeRegister::GetItemIdByName(const std::string& name) const {
+    auto it = item_name_to_id.find(name);
+    if (it == item_name_to_id.end()) {
+        throw std::out_of_range("[PrototypeRegister] No item prototype with name: " + name);
     }
     return it->second;
 }
