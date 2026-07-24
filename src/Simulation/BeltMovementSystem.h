@@ -43,7 +43,6 @@ public:
 
     void Update();
 private:
-    void ProcessBeltTile(Entity beltEntity, Vec2 pos, Direction dir, BeltComponent& beltComp);
     void MoveItemsInLane(int laneIndex, BeltComponent& beltComp, Direction beltDir, Vec2 tilePos);
     void PushItemToNextTile(int laneIndex, BeltComponent& currentBeltComp, Direction beltDir, Vec2 currentTilePos);
     std::optional<Entity> GetNextBeltEntity(Vec2 currentTile, Direction dir);

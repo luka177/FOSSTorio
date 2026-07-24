@@ -5,6 +5,16 @@
 //TBD: read from prototype?
 constexpr int TICK_MOVE_POSITIONS = 8;
 
+int TickMoveForLane(int positionsPerLane)
+{
+    return std::max(1, positionsPerLane * TICK_MOVE_POSITIONS / STRAIGHT_POSITIONS_PER_LANE);
+}
+
+int ItemSpacingForLane(int positionsPerLane)
+{
+    return std::max(1, positionsPerLane * ITEM_POSITION_LENGTH / STRAIGHT_POSITIONS_PER_LANE);
+}
+
 bool IsRightTurn(Direction from, Direction to)
 {
     switch (from)
@@ -32,9 +42,9 @@ bool IsInnerLane(int laneIndex, Direction from, Direction to)
     const bool rightTurn = IsRightTurn(from, to);
 
     if (rightTurn)
-        return laneIndex == 1;
-    else
         return laneIndex == 0;
+    else
+        return laneIndex == 1;
 }
 
 int PositionsPerLaneForTile(const BeltComponent& beltComp, size_t lane, Direction dir)
@@ -70,46 +80,59 @@ void BeltMovementSystem::Update()
         Entity beltEntity = beltComponents.GetEntityByIndex(i);
         BeltComponent& beltComp = beltComponents.GetComponentByIndex(i);
 
-        if ( Coordinator::Instance().HasComponent<Vec2>(beltEntity))
+        if (Coordinator::Instance().HasComponent<Vec2>(beltEntity))
+        {
+            Direction& dir = Coordinator::Instance().GetComponent<Direction>(beltEntity);
+            for (int lane = 0; lane < LANES_PER_BELT; ++lane)
+            {
+                MoveItemsInLane(lane, beltComp, dir, Coordinator::Instance().GetComponent<Vec2>(beltEntity));
+            }
+        }
+    }
+
+    for (size_t i = 0; i < beltComponents.Size(); ++i)
+    {
+        Entity beltEntity = beltComponents.GetEntityByIndex(i);
+        BeltComponent& beltComp = beltComponents.GetComponentByIndex(i);
+
+        if (Coordinator::Instance().HasComponent<Vec2>(beltEntity))
         {
             Vec2& pos = Coordinator::Instance().GetComponent<Vec2>(beltEntity);
             Direction& dir = Coordinator::Instance().GetComponent<Direction>(beltEntity);
-            ProcessBeltTile(beltEntity, pos, dir, beltComp);
+            for (int lane = 0; lane < LANES_PER_BELT; ++lane)
+            {
+                PushItemToNextTile(lane, beltComp, dir, pos);
+            }
         }
-    }
-}
-
-void BeltMovementSystem::ProcessBeltTile(Entity beltEntity, Vec2 pos, Direction dir, BeltComponent& beltComp)
-{
-    for (int lane = 0; lane < LANES_PER_BELT; ++lane)
-    {
-        PushItemToNextTile(lane, beltComp, dir, pos);
-        MoveItemsInLane(lane, beltComp, dir, pos);
     }
 }
 
 void BeltMovementSystem::MoveItemsInLane(int laneIndex, BeltComponent& beltComp, Direction beltDir, Vec2 pos)
 {
-     const int positionsPerLane =
+    const int positionsPerLane =
         GetPositionsPerLaneForTile(laneIndex, beltComp, beltDir);
+    const int tickMove = TickMoveForLane(positionsPerLane);
+    const int itemSpacing = ItemSpacingForLane(positionsPerLane);
 
+    std::optional<int> aheadPos;
     for (auto it = beltComp.itemPositions[laneIndex].rbegin();
          it != beltComp.itemPositions[laneIndex].rend(); ++it)
     {
         if (it->item.has_value())
         {
-            int new_pos = it->start_pos + TICK_MOVE_POSITIONS;
-            if (std::next(it) != beltComp.itemPositions[laneIndex].rend())
+            int new_pos = it->start_pos + tickMove;
+            if (aheadPos.has_value())
             {
-                const auto& itemInFront = *std::next(it);
-                int max_allowed_pos = itemInFront.start_pos - ITEM_POSITION_LENGTH;
-                new_pos = std::min(new_pos, max_allowed_pos);
+                new_pos = std::min(new_pos, *aheadPos - itemSpacing);
             }
+            // Never move backward, even if already too close to the item ahead.
+            new_pos = std::max<int>(new_pos, it->start_pos);
             if (new_pos < positionsPerLane)
             {
                 it->start_pos = new_pos;
             }
         }
+        aheadPos = it->start_pos;
     }
 }
 
@@ -120,17 +143,24 @@ void BeltMovementSystem::PushItemToNextTile(int laneIndex, BeltComponent& curren
     auto& exitingItemData = currentBeltComp.itemPositions[laneIndex].back();
     const int positionsPerLane =
         GetPositionsPerLaneForTile(laneIndex, currentBeltComp, beltDir);
-    if (exitingItemData.start_pos + TICK_MOVE_POSITIONS >= positionsPerLane)
+    const int tickMove = TickMoveForLane(positionsPerLane);
+    const int overflow = exitingItemData.start_pos + tickMove - positionsPerLane;
+    if (overflow >= 0)
     {
         std::optional<Entity> nextBeltEntity = GetNextBeltEntity(pos, beltDir);
         if (nextBeltEntity.has_value())
         {
-            BeltComponent& nextBeltComp = Coordinator::Instance().GetComponent<BeltComponent>(nextBeltEntity.value());
-            int entry_pos = 0;
+            Entity nextEntity = nextBeltEntity.value();
+            BeltComponent& nextBeltComp = Coordinator::Instance().GetComponent<BeltComponent>(nextEntity);
+            Direction nextDir = Coordinator::Instance().GetComponent<Direction>(nextEntity);
+            const int nextPositionsPerLane = GetPositionsPerLaneForTile(laneIndex, nextBeltComp, nextDir);
+
+            int entry_pos = overflow * nextPositionsPerLane / positionsPerLane;
+
             if (!nextBeltComp.itemPositions[laneIndex].empty())
             {
                 const auto& firstItem = nextBeltComp.itemPositions[laneIndex].front();
-                if (firstItem.start_pos < ITEM_POSITION_LENGTH)
+                if (firstItem.start_pos < entry_pos + ItemSpacingForLane(nextPositionsPerLane))
                 {
                     return;
                 }

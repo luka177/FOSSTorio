@@ -110,54 +110,42 @@ void ComputeItemWorldPosition(const Vec2& tilePos,
 
         worldX += perpX * side;
         worldY += perpY * side;
-        worldX -= 16;
-        // HACK: Center pos changed, just offset for now
-        worldY -= 8;
-        return;
+    }
+    else
+    {
+        bool inner = IsInnerLane(lane, fromDir, toDir);
+
+        const int positionsPerLane =
+            inner ? CORNER_INNER_POSITIONS_PER_LANE : CORNER_OUTER_POSITIONS_PER_LANE;
+
+        float t = startPos / float(positionsPerLane);
+
+        Vec2 vTo   = dirToVec(toDir);
+        Vec2 vFrom = dirToVec(fromDir);
+
+        centerX = (tilePos.x + 0.5f) * tileSize + 0.5f * tileSize * (vTo.x - vFrom.x);
+        centerY = (tilePos.y + 0.5f) * tileSize + 0.5f * tileSize * (vTo.y - vFrom.y);
+
+        float innerRadius = tileSize * 0.15f;
+        float outerRadius = tileSize * 0.85f;
+        float radius      = inner ? innerRadius :  outerRadius;
+
+        float cross = vFrom.x * vTo.y - vFrom.y * vTo.x;
+        float sign = (cross > 0.0f) ? 1.0f : -1.0f;
+        float delta = sign * (0.5f * PI);
+
+        float angleStart = directionToAngle(toDir) + PI;
+        float angle      = angleStart + t * delta;
+
+        worldX = centerX + std::cos(angle) * radius;
+        worldY = centerY + std::sin(angle) * radius;
     }
 
-    bool inner = IsInnerLane(lane, fromDir, toDir);
+    worldX -= 8.0f;
+    worldY -= 8.0f;
 
-    const int positionsPerLane =
-        inner ? CORNER_INNER_POSITIONS_PER_LANE : CORNER_OUTER_POSITIONS_PER_LANE;
-
-    float t = startPos / float(positionsPerLane);
-
-
-    Vec2 vTo   = dirToVec(toDir);
-    Vec2 vFrom = dirToVec(fromDir);
-    // Decide for circle center, it is alvays in a corner, but what corner, using reletive from vector is relevant here (NOT A BUG)
-    if(vFrom.x == 0) {
-        centerY = (tilePos.y+(0.5f*vFrom.y)) * tileSize;
-        centerX = (tilePos.x+(0.5f*vTo.x)) * tileSize;
-    } else {
-        centerY = (tilePos.y+(0.5f*vTo.y)) * tileSize;
-        centerX = (tilePos.x+(0.5f*vFrom.x)) * tileSize;
-    }
-    // HACK: Center pos changed, just offset for now
-    centerY += 8;
-    // Different radius for inner vs outer lane
-    float innerRadius = tileSize * 0.15f;
-    float outerRadius = tileSize * 0.85f;
-    float radius      = inner ? innerRadius :  outerRadius;
-
-    float angleFromDir = directionToAngle(fromDir);
-    // FROM unlike TO is RELETIVE to this tile not compass accurate thus west means object is moving EAST towars positive X, and enters from west
-    vFrom.x = -vFrom.x;
-    vFrom.y = -vFrom.y;
-
-    float cross = vFrom.x * vTo.y - vFrom.y * vTo.x;
-    float sign = (cross > 0.0f) ? 1.0f : -1.0f;
-    float delta = sign * (0.5f * PI);
-
-    float angleStart = angleFromDir + sign * (0.5f * PI);
-    float angle      = angleStart + t * delta;
-
-    float localX = std::cos(angle) * radius;
-    float localY = std::sin(angle) * radius;
-
-    worldX = centerX + localX;
-    worldY = centerY + localY;
+    // Fix edge bleed artifacts
+    worldY = std::round(worldY);
 }
 
 void transportBeltToRender(std::vector<RenderObject>& queue, const TransportBeltConnectablePrototype* belt, const Vec2& pos, Entity entity) {
@@ -180,12 +168,12 @@ void transportBeltToRender(std::vector<RenderObject>& queue, const TransportBelt
         uint8_t dir;
         // TBD: is single direction belt texture in this context a thing?
         if(Coordinator::Instance().GetComponent<BeltComponent>(entity).isCorner) {
-            dir = belt->get_animation_set()->cornerDirectionToDirectionID(Coordinator::Instance().GetComponent<BeltComponent>(entity).cornerFromDir, Coordinator::Instance().GetComponent<Direction>(entity)) - 1;
+            Direction enteredFromEdge = oppositeDirection(Coordinator::Instance().GetComponent<BeltComponent>(entity).cornerFromDir);
+            dir = belt->get_animation_set()->cornerDirectionToDirectionID(enteredFromEdge, Coordinator::Instance().GetComponent<Direction>(entity)) - 1;
         } else {
             dir = belt->get_animation_set()->directionToDirectionID(Coordinator::Instance().GetComponent<Direction>(entity)) - 1;
         }
         AnimationFrameComponent &frameid = Coordinator::Instance().GetComponent<AnimationFrameComponent>(entity);
-        // Initial frame would be set to 0, adjust depending on belt direction
         if(frameid.frame < dir*(belt->get_animation_set()->getAnimation()->getFrameCount())) {
                 frameid.frame = dir*(belt->get_animation_set()->getAnimation()->getFrameCount());
         }

@@ -58,6 +58,8 @@ void Surface::create_entity(sol::table args) {
                 struct Item belt_item;
                 belt_item.prototype = PrototypeRegister::getInstance().GetIdByName("fast-transport-belt");
                 BeltComponent belt{};
+                belt.isCorner = args["iscorner"].get_or(false);
+                belt.cornerFromDir = args["direction1"].get_or(Direction::North);
                 PrototypeID id = PrototypeRegister::getInstance().GetIdByName("fast-transport-belt");
                 belt.itemPositions[0].push_back(BeltItemData{ ItemRegister::getInstance().Add(belt_item), 0 });
                 belt.itemPositions[1].push_back(BeltItemData{ ItemRegister::getInstance().Add(belt_item), 0 });

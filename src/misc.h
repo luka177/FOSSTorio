@@ -128,6 +128,17 @@ inline Vec2 dirToVec(Direction d)
     return {0,0};
 }
 
+inline Direction oppositeDirection(Direction d)
+{
+    switch (d) {
+        case Direction::East:  return Direction::West;
+        case Direction::West:  return Direction::East;
+        case Direction::North: return Direction::South;
+        case Direction::South: return Direction::North;
+        default: return d;
+    }
+}
+
 inline float directionToAngle(Direction d)
 {
     switch (d) {
