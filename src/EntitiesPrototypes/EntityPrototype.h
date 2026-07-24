@@ -19,6 +19,9 @@ public:
     TextureId getIcon() const {
         return icon;
     };
+    const BoundingBox& getSelectionBox() const {
+        return selection_box;
+    };
 protected:
     TextureId icon;
     SpriteSizeType icon_size;

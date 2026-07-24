@@ -53,14 +53,20 @@ void tilesToRender(TileTextureManager *ttm, std::vector<RenderObject>& queue, Su
 }
 
 void craftingMachineToRender(std::vector<RenderObject>& queue, const CraftingMachinePrototype* machine, const Vec2& pos, Entity entity) {
+    const BoundingBox& selectionBox = machine->getSelectionBox();
+    float w = float(selectionBox.right_bottom.x - selectionBox.left_top.x) * tileSize;
+    float h = float(selectionBox.right_bottom.y - selectionBox.left_top.y) * tileSize;
+    if (w <= 0.0f) w = tileSize;
+    if (h <= 0.0f) h = tileSize;
+
     if(machine->get_graphics_set()->getAnimation()->getAnimation()->getLayersCount()!=0) {
         for(Animation anim : machine->get_graphics_set()->getAnimation()->getAnimation()->getLayers()){
             RenderObject ro;
             ro.tex = TextureAtlasSystem::getInstance().getUV(anim.getSprite());
-            ro.x = pos.x * tileSize;
-            ro.y = pos.y * tileSize;
-            ro.w = tileSize;
-            ro.h = tileSize;
+            ro.x = pos.x * tileSize - (w - tileSize) * 0.5f;
+            ro.y = pos.y * tileSize - (h - tileSize) * 0.5f;
+            ro.w = w;
+            ro.h = h;
             ro.rotation = 0;
             // IS it alvays object?
             ro.layer = RenderLayer::Object;
