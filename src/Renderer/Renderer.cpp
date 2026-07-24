@@ -35,6 +35,7 @@ using Engine::Window;
 
 
 bool Renderer::initialize(Engine::Window* window) {
+    init.type = bgfx::RendererType::Vulkan;
     init.resolution.width = 800;
     init.resolution.height = 600;
     init.resolution.reset = BGFX_RESET_VSYNC;
@@ -156,6 +157,10 @@ bgfx::TextureHandle Renderer::loadTexture(const char* filePath) {
 
 bgfx::ShaderHandle Renderer::loadShader(const char* path) {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
+    if (!file.is_open()) {
+        std::cerr << "[Renderer] Failed to open shader file: " << path << std::endl;
+        return BGFX_INVALID_HANDLE;
+    }
     auto size = file.tellg();
     file.seekg(0);
     auto* mem = new char[size];
