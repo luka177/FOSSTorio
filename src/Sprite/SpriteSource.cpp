@@ -3,7 +3,7 @@
 
 SpriteSource::SpriteSource(sol::table spritesource, bool load_texture) {
     sol::table t;
-    bool textureless = false;
+    bool textureless = spritesource["layers"].valid() && !spritesource["filename"].valid();
     std::cerr << "[SpriteSource] enter constructor\n";
 
     if(load_texture) {
@@ -12,7 +12,6 @@ SpriteSource::SpriteSource(sol::table spritesource, bool load_texture) {
             sprite = TextureAtlasSystem::getInstance().requestTexture(resolveLuaPath(spritesource["filename"].get<std::string>()));
         } else if (spritesource["layers"].valid()) {  // As per https://lua-api.factorio.com/latest/types/Animation.html#filename as there is no textrue dont try getting size
             std::cerr << "[SpriteSource] textureless, layered sprite detected\n";
-            textureless = true;
         } else {
             throw std::runtime_error("[SpriteSource] either layers or filename are needed!\n");
         }
