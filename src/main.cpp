@@ -82,6 +82,8 @@ int main() {
     atlas->buildFromLua(luaEngine->getState(), "furnace");
     atlas->buildFromLua(luaEngine->getState(), "transport-belt");
     atlas->buildFromLua(luaEngine->getState(), "inserter");
+    atlas->buildFromLua(luaEngine->getState(), "assembling-machine");
+    atlas->buildFromLua(luaEngine->getState(), "item");
     luaEngine->callOnInit();
     ttm->loadFromLua(luaEngine->getState());
     TextureAtlasSystem::getInstance().bake();

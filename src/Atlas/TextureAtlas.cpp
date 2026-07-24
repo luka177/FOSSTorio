@@ -9,8 +9,10 @@
 #include <Lua/LuaHelper.h>
 #include <Prototype/PrototypeRegister.h>
 #include <EntitiesPrototypes/FurnacePrototype.h>
-#include <EntitiesPrototypes/TransportBeltConnectablePrototype.h>
+#include <EntitiesPrototypes/TransportBeltPrototype.h>
 #include <EntitiesPrototypes/InserterPrototype.h>
+#include <EntitiesPrototypes/AssemblingMachinePrototype.h>
+#include <Item/ItemPrototype.h>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <bgfx/bimg/3rdparty/stb/stb_image.h>
@@ -68,10 +70,16 @@ for (auto& kv : entities) {
         auto proto = std::make_unique<FurnacePrototype>(def);
         pi = PrototypeRegister::getInstance().AddPrototype(std::move(proto));
     } else if (entityType == "transport-belt") {
-        auto proto = std::make_unique<TransportBeltConnectablePrototype>(def);
+        auto proto = std::make_unique<TransportBeltPrototype>(def);
         pi = PrototypeRegister::getInstance().AddPrototype(std::move(proto));
     } else if (entityType == "inserter") {
         auto proto = std::make_unique<InserterPrototype>(def);
+        pi = PrototypeRegister::getInstance().AddPrototype(std::move(proto));
+    } else if (entityType == "assembling-machine") {
+        auto proto = std::make_unique<AssemblingMachinePrototype>(def);
+        pi = PrototypeRegister::getInstance().AddPrototype(std::move(proto));
+    } else if (entityType == "item") {
+        auto proto = std::make_unique<ItemPrototype>(def);
         pi = PrototypeRegister::getInstance().AddPrototype(std::move(proto));
     }
     sol::object picture  = def["picture"];
